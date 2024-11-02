@@ -140,7 +140,10 @@
                     
                     // Tone.Samplerでピアノ音を再生
                     pianoSampler.triggerAttackRelease(
-                        musicData.note, musicData.duration, undefined, musicData.intensity
+                        Tone.Frequency(musicData.note, "midi").toNote(), 
+                        musicData.duration, 
+                        undefined, 
+                        musicData.intensity
                     );
                     Tone.Transport.bpm.value = musicData.tempo;  // テンポを反映
 

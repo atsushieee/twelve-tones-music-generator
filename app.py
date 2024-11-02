@@ -14,26 +14,44 @@ class EffectRequest(BaseModel):
     tempo: int
 
 # 音階の配列を保持するグローバル変数
-current_sequence = []
+melody_row = []
+base_row = []
+row_retro = []
+row_inverted = []
+row_retro_inverted = []
 sequence_index = 0
 
 def generate_new_sequence():
-    notes = ["C4", "C#4", "D4", "D#4", "E4", "F4", "F#4", "G4", "G#4", "A4", "A#4", "B4"]
+    notes = list(range(60, 72))
     random.shuffle(notes)
     return notes
+
+def retrograde(row):
+    return row[::-1]
+
+def inversion(row):
+    base_note = row[0]
+    inverted = [base_note - (note - base_note) for note in row]
+    # 音域を60-71に制限
+    return [((note - 60) % 12) + 60 for note in inverted]
 
 # 音楽データ生成関数
 def generate_music_data(intensity, tempo):
     print(f"Generating music data with intensity: {intensity}, tempo: {tempo}")
-    global current_sequence, sequence_index
+    global melody_row, base_row, row_retro, row_inverted, row_retro_inverted, sequence_index
     
-    # シーケンスが空か最後まで到達した場合、新しいシーケンスを生成
-    if not current_sequence or sequence_index >= len(current_sequence):
-        current_sequence = generate_new_sequence()
+    if not melody_row or sequence_index >= len(melody_row):
+        if not melody_row or random.random() < 0.25:
+            print("!!! generate new sequence !!!")
+            base_row = generate_new_sequence()
+            row_retro = retrograde(base_row)
+            row_inverted = inversion(base_row)
+            row_retro_inverted = retrograde(row_inverted)
+
+        melody_row = random.choice([base_row, row_retro, row_inverted, row_retro_inverted])
         sequence_index = 0
     
-    # 現在の音を取得し、インデックスを進める
-    note = current_sequence[sequence_index]
+    note = melody_row[sequence_index]
     sequence_index += 1
     
     return {
