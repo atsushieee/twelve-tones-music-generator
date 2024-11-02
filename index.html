@@ -120,42 +120,77 @@
             document.getElementById('playButton').disabled = false;  // ロード完了後にボタンを有効にする
         });
 
+        // 音楽生成ロジックをクライアントサイドに移動
+        function generateNewSequence() {
+            const notes = Array.from({length: 12}, (_, i) => i + 60);
+            return notes.sort(() => Math.random() - 0.5);
+        }
+
+        function retrograde(row) {
+            return [...row].reverse();
+        }
+
+        function inversion(row) {
+            const baseNote = row[0];
+            const inverted = row.map(note => baseNote - (note - baseNote));
+            return inverted.map(note => ((note - 60 + 12) % 12) + 60);
+        }
+
+        let melodyRow = [];
+        let baseRow = [];
+        let rowRetro = [];
+        let rowInverted = [];
+        let rowRetroInverted = [];
+        let sequenceIndex = 0;
+
+        function generateNextNote(intensity, tempo) {
+            if (!melodyRow.length || sequenceIndex >= melodyRow.length) {
+                if (!melodyRow.length || Math.random() < 0.25) {
+                    baseRow = generateNewSequence();
+                    rowRetro = retrograde(baseRow);
+                    rowInverted = inversion(baseRow);
+                    rowRetroInverted = retrograde(rowInverted);
+                }
+                melodyRow = [baseRow, rowRetro, rowInverted, rowRetroInverted][Math.floor(Math.random() * 4)];
+                sequenceIndex = 0;
+            }
+
+            const note = melodyRow[sequenceIndex];
+            sequenceIndex++;
+            
+            return {
+                note: note,
+                duration: "4n",
+                intensity: intensity,
+                tempo: tempo
+            };
+        }
+
         document.getElementById('playButton').addEventListener('click', async () => {
             if (!isPlaying) {
                 await Tone.start();
                 isPlaying = true;
                 
-                async function fetchMusicData() {
+                function playNextNote() {
                     const intensity = parseFloat(document.getElementById('intensity').value);
                     const tempo = parseInt(document.getElementById('tempo').value);
-
-                    const response = await fetch("/generate_music", {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({ intensity, tempo })
-                    });
-                    const musicData = await response.json();
                     
-                    // Tone.Samplerでピアノ音を再生
+                    const musicData = generateNextNote(intensity, tempo);
+                    
                     pianoSampler.triggerAttackRelease(
                         Tone.Frequency(musicData.note, "midi").toNote(), 
                         musicData.duration, 
                         undefined, 
                         musicData.intensity
                     );
-                    Tone.Transport.bpm.value = musicData.tempo;  // テンポを反映
+                    Tone.Transport.bpm.value = musicData.tempo;
 
-                    // 現在のインターバルをクリアして新しいインターバルを設定
                     clearInterval(intervalId);
-                    // テンポから間隔を計算（60000ミリ秒 = 1分）
                     const interval = (60000 / musicData.tempo);
-                    intervalId = setInterval(fetchMusicData, interval);
+                    intervalId = setInterval(playNextNote, interval);
                 }
 
-                // 初回実行
-                fetchMusicData();
+                playNextNote();
             }
         });
 
