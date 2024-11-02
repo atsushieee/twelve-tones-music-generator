@@ -7,16 +7,18 @@
 </head>
 <body>
     <h1>ピアノ音楽生成アプリ</h1>
-    <label for="intensity">エフェクト強度:</label>
+    <label for="intensity">音量:</label>
     <input type="range" id="intensity" min="0" max="1" step="0.1" value="0.5">
     
     <label for="tempo">テンポ:</label>
     <input type="number" id="tempo" min="60" max="180" value="120">
     
     <button id="playButton" disabled>音楽を再生</button>
+    <button id="stopButton">停止</button>
 
     <script>
         let isPlaying = false;
+        let intervalId; // インターバルIDを保持する変数
 
         // 各音階に対応するピアノサンプルをTone.Bufferで読み込む
         const pianos = {
@@ -137,11 +139,27 @@
                     const musicData = await response.json();
                     
                     // Tone.Samplerでピアノ音を再生
-                    pianoSampler.triggerAttackRelease(musicData.note, musicData.duration);
+                    pianoSampler.triggerAttackRelease(
+                        musicData.note, musicData.duration, undefined, musicData.intensity
+                    );
                     Tone.Transport.bpm.value = musicData.tempo;  // テンポを反映
+
+                    // 現在のインターバルをクリアして新しいインターバルを設定
+                    clearInterval(intervalId);
+                    // テンポから間隔を計算（60000ミリ秒 = 1分）
+                    const interval = (60000 / musicData.tempo);
+                    intervalId = setInterval(fetchMusicData, interval);
                 }
 
-                setInterval(fetchMusicData, 500);  // 0.5秒ごとに新しいデータを取得
+                // 初回実行
+                fetchMusicData();
+            }
+        });
+
+        document.getElementById('stopButton').addEventListener('click', () => {
+            if (isPlaying) {
+                clearInterval(intervalId);
+                isPlaying = false;
             }
         });
     </script>
