@@ -7,8 +7,8 @@
 </head>
 <body>
     <h1>ピアノ音楽生成アプリ</h1>
-    <label for="intensity">音量:</label>
-    <input type="range" id="intensity" min="0" max="1" step="0.1" value="0.5">
+    <label for="velocity">音量:</label>
+    <input type="range" id="velocity" min="0" max="1" step="0.1" value="0.5">
     
     <label for="tempo">テンポ:</label>
     <input type="number" id="tempo" min="60" max="180" value="120">
@@ -160,7 +160,7 @@
             return Math.floor(Math.random() * (range * 2 + 1)) - range;
         }
 
-        function generateNextNote(intensity, tempo, melodyRange) {
+        function generateNextNote(velocity, tempo, melodyRange) {
             if (!melodyRow.length || sequenceIndex >= melodyRow.length) {
                 if (!melodyRow.length || Math.random() < 0.25) {
                     baseRow = generateNewSequence();
@@ -186,12 +186,17 @@
 
             const note = melodyRow[sequenceIndex] + (currentOctaveShift * 12);
             sequenceIndex++;
+
+            // velocityを指定された値から-0.1〜+0.1の範囲でランダムに調整
+            const adjustedVelocity = velocity + (Math.random() * 0.2 - 0.1);
+            // tempoを指定された値から-10%〜+10%の範囲でランダムに調整
+            const adjustedTempo = tempo + (tempo * 0.1 * (Math.random() * 2 - 1));
             
             return {
                 note: note,
                 duration: "4n",
-                intensity: intensity,
-                tempo: tempo
+                velocity: adjustedVelocity,
+                tempo: adjustedTempo
             };
         }
 
@@ -201,17 +206,17 @@
                 isPlaying = true;
                 
                 function playNextNote() {
-                    const intensity = parseFloat(document.getElementById('intensity').value);
+                    const velocity = parseFloat(document.getElementById('velocity').value);
                     const tempo = parseInt(document.getElementById('tempo').value);
                     const melodyRange = parseInt(document.getElementById('melodyRange').value);
                     
-                    const musicData = generateNextNote(intensity, tempo, melodyRange);
+                    const musicData = generateNextNote(velocity, tempo, melodyRange);
                     
                     pianoSampler.triggerAttackRelease(
                         Tone.Frequency(musicData.note, "midi").toNote(), 
                         musicData.duration, 
                         undefined, 
-                        musicData.intensity
+                        musicData.velocity
                     );
                     Tone.Transport.bpm.value = musicData.tempo;
 
