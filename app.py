@@ -19,3 +19,7 @@ try:
     app.mount("/", StaticFiles(directory=".", html=True), name="static")
 except Exception as e:
     print(f"Error mounting static files: {e}")
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}

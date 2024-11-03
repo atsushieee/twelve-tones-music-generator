@@ -14,12 +14,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # FastAPIサーバーとクライアントファイルをコピー
-COPY app.py .
-COPY index.html .
-COPY assets/ assets/
+COPY . .
 
 # 実行時の環境変数を設定
 ENV PORT=7860
+ENV WORKERS=1
+ENV TIMEOUT=300
 
-# uvicornサーバーを起動
-CMD uvicorn app:app --host 0.0.0.0 --port ${PORT}
+# uvicornサーバーを起動（タイムアウトとワーカー数を指定）
+CMD uvicorn app:app --host 0.0.0.0 --port ${PORT} --workers ${WORKERS} --timeout-keep-alive ${TIMEOUT}
