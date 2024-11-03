@@ -12,6 +12,14 @@
     
     <label for="tempo">テンポ:</label>
     <input type="number" id="tempo" min="60" max="180" value="120">
+
+    <label for="melodyRange">メロディ幅:</label>
+    <select id="melodyRange">
+        <option value="1" selected>1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+    </select>
     
     <button id="playButton" disabled>音楽を再生</button>
     <button id="stopButton">停止</button>
@@ -142,8 +150,17 @@
         let rowInverted = [];
         let rowRetroInverted = [];
         let sequenceIndex = 0;
+        let octave_shift = 0;
+        let isRandomOctave = false;
 
-        function generateNextNote(intensity, tempo) {
+        // オクターブシフトを計算する関数を追加
+        function calculateOctaveShift(melodyRange) {
+            if (melodyRange === 1) return 0;
+            const range = melodyRange - 1;  // 片側の範囲
+            return Math.floor(Math.random() * (range * 2 + 1)) - range;
+        }
+
+        function generateNextNote(intensity, tempo, melodyRange) {
             if (!melodyRow.length || sequenceIndex >= melodyRow.length) {
                 if (!melodyRow.length || Math.random() < 0.25) {
                     baseRow = generateNewSequence();
@@ -153,9 +170,21 @@
                 }
                 melodyRow = [baseRow, rowRetro, rowInverted, rowRetroInverted][Math.floor(Math.random() * 4)];
                 sequenceIndex = 0;
+                
+                // 75%の確率で12音共通のoctave_shiftを設定
+                isRandomOctave = Math.random() < 0.25;  // 25%の確率でtrue
+                if (!isRandomOctave) {
+                    octave_shift = calculateOctaveShift(melodyRange);
+                }
             }
 
-            const note = melodyRow[sequenceIndex];
+            // 25%の確率で音ごとに個別のoctave_shiftを計算
+            let currentOctaveShift = octave_shift;
+            if (isRandomOctave) {
+                currentOctaveShift = calculateOctaveShift(melodyRange);
+            }
+
+            const note = melodyRow[sequenceIndex] + (currentOctaveShift * 12);
             sequenceIndex++;
             
             return {
@@ -174,8 +203,9 @@
                 function playNextNote() {
                     const intensity = parseFloat(document.getElementById('intensity').value);
                     const tempo = parseInt(document.getElementById('tempo').value);
+                    const melodyRange = parseInt(document.getElementById('melodyRange').value);
                     
-                    const musicData = generateNextNote(intensity, tempo);
+                    const musicData = generateNextNote(intensity, tempo, melodyRange);
                     
                     pianoSampler.triggerAttackRelease(
                         Tone.Frequency(musicData.note, "midi").toNote(), 
