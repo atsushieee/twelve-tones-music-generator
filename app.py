@@ -1,8 +1,13 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import datetime
 
 app = FastAPI()
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
 # CORSミドルウェアを追加
 app.add_middleware(
@@ -19,7 +24,3 @@ try:
     app.mount("/", StaticFiles(directory=".", html=True), name="static")
 except Exception as e:
     print(f"Error mounting static files: {e}")
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
