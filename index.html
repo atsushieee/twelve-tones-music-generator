@@ -15,13 +15,26 @@
     <label for="tempo">テンポ:</label>
     <input type="number" id="tempo" min="60" max="540" value="240">
 
-    <label for="melodyRange">メロディ幅:</label>
-    <select id="melodyRange">
-        <option value="1" selected>1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-    </select>
+    <div class="control-group">
+        <h3>音域 / 動きの量</h3>
+        <div class="control-item">
+            <label for="upperRange">上方向の拡張:</label>
+            <input type="range" id="upperRange" min="0" max="100" step="5" value="0">
+            <span id="upperRange-value">B4</span>
+        </div>
+        
+        <div class="control-item">
+            <label for="lowerRange">下方向の拡張:</label>
+            <input type="range" id="lowerRange" min="0" max="100" step="5" value="0">
+            <span id="lowerRange-value">C4</span>
+        </div>
+
+        <div class="control-item"></div>
+            <label for="melodicCoherence">音程の統一感:</label>
+            <input type="range" id="melodicCoherence" min="0" max="100" step="5" value="100">
+            <span id="melodicCoherence-value">100% (跳躍確率: 0%)</span>
+        </div>
+    </div>
 
     <div class="control-group">
         <h3>音符 / 休符 の長さ</h3>
@@ -175,6 +188,29 @@
         let octave_shift = 0;
         let isRandomOctave = false;
 
+        function getMelodyRange(value, isUpper) {
+            if (value <= 0) return 0;
+            
+            // 基準となるポイントを定義
+            const points = isUpper ? 
+                [[0, 0], [25, 12], [50, 24], [75, 36], [100, 48]] :  // 上方向: B4→B5→B6→B7
+                [[0, 0], [25, -12], [50, -24], [75, -36], [100, -48]];  // 下方向: C4→C3→C2→C1
+            
+            // 最も近い2つのポイントを見つける
+            let i = 0;
+            while (i < points.length - 1 && points[i + 1][0] < value) {
+                i++;
+            }
+            
+            // 線形補間
+            const x1 = points[i][0];
+            const x2 = points[i + 1][0];
+            const y1 = points[i][1];
+            const y2 = points[i + 1][1];
+            
+            return Math.round(y1 + (value - x1) * (y2 - y1) / (x2 - x1));
+        }
+
         // オクターブシフトを計算する関数を追加
         function calculateOctaveShift(melodyRange) {
             if (melodyRange === 1) return 0;
@@ -264,33 +300,79 @@
             return (60000 / tempo) * beats;
         }
 
-        function generateNextNote(velocity, tempo, melodyRange) {
+        function adjustNoteToRange(note, lowerNote, upperNote, coherence, previousNote) {
+            // 音符の音高（0-11）を取得
+            const pitchClass = note % 12;
+            
+            // 利用可能なオクターブを計算
+            const minOctave = Math.floor(lowerNote / 12);
+            const maxOctave = Math.floor(upperNote / 12);
+            
+            // 可能なオクターブの配列を作成
+            const possibleOctaves = [];
+            for (let octave = minOctave; octave <= maxOctave; octave++) {
+                const noteInOctave = pitchClass + (octave * 12);
+                if (noteInOctave >= lowerNote && noteInOctave <= upperNote) {
+                    possibleOctaves.push(octave);
+                }
+            }
+            
+            if (possibleOctaves.length === 0) return lowerNote; // 安全対策
+            
+            // 前の音がある場合、音程の統一感に基づいて処理
+            if (previousNote !== null) {
+                const prevOctave = Math.floor(previousNote / 12);
+                
+                // coherenceが高いほど、前の音に近いオクターブを選びやすくする
+                const random = Math.random() * 100;
+                if (random < coherence) {
+                    // 前の音に最も近いオクターブを選択
+                    const nearestOctave = possibleOctaves.reduce((nearest, current) => {
+                        return Math.abs(current - prevOctave) < Math.abs(nearest - prevOctave) ? current : nearest;
+                    });
+                    return pitchClass + (nearestOctave * 12);
+                }
+            }
+            
+            // coherenceが低い場合や前の音がない場合は完全にランダムに選択
+            const selectedOctave = possibleOctaves[Math.floor(Math.random() * possibleOctaves.length)];
+            return pitchClass + (selectedOctave * 12);
+        }
+
+        function generateNextNote(velocity, tempo) {
             if (!melodyRow.length || sequenceIndex >= melodyRow.length) {
+                const lastNote = melodyRow.length ? melodyRow[melodyRow.length - 1] : null;
+                
                 if (!melodyRow.length || Math.random() < 0.25) {
                     baseRow = generateNewSequence();
+                    // 各変形を生成
                     rowRetro = retrograde(baseRow);
                     rowInverted = inversion(baseRow);
                     rowRetroInverted = retrograde(rowInverted);
                 }
-                melodyRow = [baseRow, rowRetro, rowInverted, rowRetroInverted][Math.floor(Math.random() * 4)];
-                sequenceIndex = 0;
                 
-                // 75%の確率で12音共通のoctave_shiftを設定
-                isRandomOctave = Math.random() < 0.25;  // 25%の確率でtrue
-                if (!isRandomOctave) {
-                    octave_shift = calculateOctaveShift(melodyRange);
-                }
+                // 基本形、逆行形、転回形、逆行転回形からランダムに選択
+                const selectedRow = [baseRow, rowRetro, rowInverted, rowRetroInverted][Math.floor(Math.random() * 4)];
+                
+                // 選択された音列に対して音域調整を行う
+                const coherence = parseInt(document.getElementById('melodicCoherence').value);
+                const upperValue = parseInt(document.getElementById('upperRange').value);
+                const lowerValue = parseInt(document.getElementById('lowerRange').value);
+                const upperNote = getBaseNote(true) + getMelodyRange(upperValue, true);
+                const lowerNote = getBaseNote(false) + getMelodyRange(lowerValue, false);
+                
+                // 音域調整された音列を melodyRow に設定（前の12音列の最後の音を考慮）
+                melodyRow = selectedRow.map((note, index) => {
+                    const previousNote = index > 0 ? melodyRow[index - 1] : lastNote;
+                    return adjustNoteToRange(note, lowerNote, upperNote, coherence, previousNote);
+                });
+                
+                sequenceIndex = 0;
             }
 
-            // 25%の確率で音ごとに個別のoctave_shiftを計算
-            let currentOctaveShift = octave_shift;
-            if (isRandomOctave) {
-                currentOctaveShift = calculateOctaveShift(melodyRange);
-            }
-
-            const note = melodyRow[sequenceIndex] + (currentOctaveShift * 12);
+            const note = melodyRow[sequenceIndex];
             sequenceIndex++;
-
+            
             // velocityを指定された値から-0.1〜+0.1の範囲でランダムに調整
             const adjustedVelocity = velocity + (Math.random() * 0.2 - 0.1);
             // tempoを指定された値から-10%〜+10%の範囲でランダムに調整
@@ -307,6 +389,17 @@
             };
         }
 
+        function midiToNoteName(midi) {
+            const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const note = noteNames[midi % 12];
+            const octave = Math.floor(midi / 12) - 1;
+            return note + octave;
+        }
+
+        function getBaseNote(isUpper) {
+            return isUpper ? 71 : 60; // B4: 71, C4: 60
+        }
+
         document.getElementById('playButton').addEventListener('click', async () => {
             if (!isPlaying) {
                 await Tone.start();
@@ -315,7 +408,6 @@
                 function playNextNote() {
                     const velocity = parseFloat(document.getElementById('velocity').value);
                     const tempo = parseInt(document.getElementById('tempo').value);
-                    const melodyRange = parseInt(document.getElementById('melodyRange').value);
                     const includeRest = document.getElementById('rest').checked;
                     
                     // 休符を含める設定がオンの場合、設定された確率で休符を挿入
@@ -332,7 +424,7 @@
                         }
                     }
                     
-                    const musicData = generateNextNote(velocity, tempo, melodyRange);
+                    const musicData = generateNextNote(velocity, tempo);
                     
                     pianoSampler.triggerAttackRelease(
                         Tone.Frequency(musicData.note, "midi").toNote(), 
@@ -361,6 +453,27 @@
 
         document.getElementById('velocity').addEventListener('input', function(e) {
             document.getElementById('velocity-value').textContent = e.target.value;
+        });
+
+        document.getElementById('upperRange').addEventListener('input', function(e) {
+            const baseNote = getBaseNote(true); // B4
+            const shift = getMelodyRange(parseInt(e.target.value), true);
+            const resultNote = baseNote + shift;
+            document.getElementById('upperRange-value').textContent = midiToNoteName(resultNote);
+        });
+
+        document.getElementById('lowerRange').addEventListener('input', function(e) {
+            const baseNote = getBaseNote(false); // C4
+            const shift = getMelodyRange(parseInt(e.target.value), false);
+            const resultNote = baseNote + shift;
+            document.getElementById('lowerRange-value').textContent = midiToNoteName(resultNote);
+        });
+
+        document.getElementById('melodicCoherence').addEventListener('input', function(e) {
+            const value = e.target.value;
+            const jumpProb = 100 - value;
+            document.getElementById('melodicCoherence-value').textContent = 
+                `${value}% (跳躍確率: ${jumpProb}%)`;
         });
 
         document.getElementById('duration').addEventListener('input', function(e) {
