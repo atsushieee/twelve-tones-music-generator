@@ -58,6 +58,15 @@
         </div>
     </div>
 
+    <div class="control-group">
+        <h3>同時発音数</h3>
+        <div class="control-item">
+            <label for="chordProbability">同時発音の確率:</label>
+            <input type="range" id="chordProbability" min="0" max="100" step="5" value="0">
+            <span id="chordProbability-value">0% (単音のみ)</span>
+        </div>
+    </div>
+
     <button id="playButton" disabled>音楽を再生</button>
     <button id="stopButton">停止</button>
 
@@ -367,19 +376,52 @@
                 sequenceIndex = 0;
             }
 
-            const note = melodyRow[sequenceIndex];
-            sequenceIndex++;
+            const chordProb = parseInt(document.getElementById('chordProbability').value);
+            let numNotes = 1;
             
-            // velocityを指定された値から-0.1〜+0.1の範囲でランダムに調整
+            if (chordProb > 0) {
+                const random = Math.random() * 100;
+                if (chordProb <= 50) {
+                    // 0-50%の範囲では1音か2音
+                    // 2音の確率を線形補間: 0% -> 50%
+                    const twoNoteProb = chordProb; // 0-50の値がそのまま2音を鳴らす確率になる
+                    if (random < twoNoteProb) numNotes = 2;
+                } else {
+                    // 50-100%の範囲では1音、2音、3音
+                    // 3音の確率を線形補間: 0% -> 33%
+                    // 2音と1音の確率は均等に減少: 50% -> 33%
+                    const ratio = (chordProb - 50) / 50; // 0-1の範囲
+                    const threeNoteProb = ratio * 33; // 0-33%
+                    const remainingProb = 100 - threeNoteProb;
+                    const oneAndTwoNoteProb = remainingProb / 2; // 残りを1音と2音で均等に分ける
+
+                    if (random < threeNoteProb) {
+                        numNotes = 3;
+                    } else if (random < threeNoteProb + oneAndTwoNoteProb) {
+                        numNotes = 2;
+                    }
+                    // else: numNotes = 1 (デフォルト値のまま)
+                }
+            }
+
+            // 残りの音数を確認
+            const remainingNotes = melodyRow.length - sequenceIndex;
+            numNotes = Math.min(numNotes, remainingNotes);
+
+            // 複数の音を取得
+            const notes = [];
+            for (let i = 0; i < numNotes; i++) {
+                notes.push(melodyRow[sequenceIndex + i]);
+            }
+            sequenceIndex += numNotes;
+
+            // velocityとtempoの調整（既存のコード）
             const adjustedVelocity = velocity + (Math.random() * 0.2 - 0.1);
-            // tempoを指定された値から-10%〜+10%の範囲でランダムに調整
             const adjustedTempo = tempo + (tempo * 0.1 * (Math.random() * 2 - 1));
-            
-            // 複雑度を取得
             const complexity = parseInt(document.getElementById('duration').value);
-            
+
             return {
-                note: note,
+                notes: notes,
                 duration: getNoteDuration(complexity),
                 velocity: adjustedVelocity,
                 tempo: adjustedTempo
@@ -437,12 +479,14 @@
                     
                     const musicData = generateNextNote(velocity, tempo);
                     
-                    pianoSampler.triggerAttackRelease(
-                        Tone.Frequency(musicData.note, "midi").toNote(), 
-                        musicData.duration, 
-                        undefined, 
-                        musicData.velocity
-                    );
+                    musicData.notes.forEach(note => {
+                        pianoSampler.triggerAttackRelease(
+                            Tone.Frequency(note, "midi").toNote(),
+                            musicData.duration,
+                            undefined,
+                            musicData.velocity
+                        );
+                    });
                     
                     Tone.Transport.bpm.value = musicData.tempo;
 
@@ -530,6 +574,31 @@
         melodicCoherence.type = 'hidden';
         melodicCoherence.value = '0';  // 初期値: 0%
         document.body.appendChild(melodicCoherence);
+
+        document.getElementById('chordProbability').addEventListener('input', function(e) {
+            const value = parseInt(e.target.value);
+            let description;
+            
+            if (value === 0) {
+                description = "単音のみ";
+            } else if (value <= 50) {
+                // 2音の確率を計算
+                const twoNoteProb = value;
+                const oneNoteProb = 100 - twoNoteProb;
+                description = `単音(${oneNoteProb}%) + 2音(${twoNoteProb}%)`;
+            } else {
+                // 3音の確率を計算
+                const ratio = (value - 50) / 50; // 0-1の範囲
+                const threeNoteProb = Math.round(ratio * 33); // 0-33%
+                const remainingProb = 100 - threeNoteProb;
+                const oneAndTwoNoteProb = Math.round(remainingProb / 2); // 残りを1音と2音で均等に分ける
+                
+                description = `単音(${oneAndTwoNoteProb}%) + 2音(${oneAndTwoNoteProb}%) + 3音(${threeNoteProb}%)`;
+            }
+            
+            document.getElementById('chordProbability-value').textContent = 
+                `${value}% (${description})`;
+        });
     </script>
 </body>
 </html>
