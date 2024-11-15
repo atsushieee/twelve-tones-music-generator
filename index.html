@@ -317,7 +317,8 @@
                 }
             }
             
-            if (possibleOctaves.length === 0) return lowerNote; // 安全対策
+            // 可能なオクターブがない場合は null を返す（この音はスキップされる）
+            if (possibleOctaves.length === 0) return null;
             
             // 前の音がある場合、音程の統一感に基づいて処理
             if (previousNote !== null) {
@@ -326,7 +327,6 @@
                 // coherenceが高いほど、前の音近いオクターブを選びやすくする
                 const random = Math.random() * 100;
                 if (random < coherence) {
-                    // 前の音に最も近いオクターブを選択
                     const nearestOctave = possibleOctaves.reduce((nearest, current) => {
                         return Math.abs(current - prevOctave) < Math.abs(nearest - prevOctave) ? current : nearest;
                     });
@@ -334,7 +334,6 @@
                 }
             }
             
-            // coherenceが低い場合や前の音がない場合は完全にランダムに選択
             const selectedOctave = possibleOctaves[Math.floor(Math.random() * possibleOctaves.length)];
             return pitchClass + (selectedOctave * 12);
         }
@@ -363,7 +362,7 @@
                 melodyRow = selectedRow.map((note, index) => {
                     const previousNote = index > 0 ? melodyRow[index - 1] : lastNote;
                     return adjustNoteToRange(note, lowerNote, upperNote, coherence, previousNote);
-                });
+                }).filter(note => note !== null); // null の音（範囲外）を除外
                 
                 sequenceIndex = 0;
             }
@@ -402,7 +401,7 @@
             if (complexity <= 0) {
                 return "2分音符のみ";
             } else if (complexity <= 25) {
-                return "2分音��� + 4分音符";
+                return "2分音符 + 4分音符";
             } else if (complexity <= 50) {
                 return "2分音符 + 4分音符 + 8分音符";
             } else if (complexity <= 75) {
