@@ -14,7 +14,9 @@
 }
 
 .control-item {
+    position: relative;
     margin: 10px 0;
+    height: 40px;
 }
 
 .control-item label {
@@ -22,11 +24,16 @@
     min-width: 100px;
 }
 
-input[type="range"] {
-    width: 200px;
-    vertical-align: middle;
+select {
+    padding: 5px;
+    font-size: 14px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background-color: white;
+    min-width: 80px;
 }
 
-span {
-    margin-left: 10px;
+select:focus {
+    outline: none;
+    border-color: #4CAF50;
 } 

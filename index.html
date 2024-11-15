@@ -21,21 +21,14 @@
     <div class="control-group">
         <h3>音域 / 動きの量</h3>
         <div class="control-item">
-            <label for="upperRange">上方向の拡張:</label>
-            <input type="range" id="upperRange" min="0" max="100" step="5" value="0">
-            <span id="upperRange-value">B4</span>
-        </div>
-        
-        <div class="control-item">
-            <label for="lowerRange">下方向の拡張:</label>
-            <input type="range" id="lowerRange" min="0" max="100" step="5" value="0">
-            <span id="lowerRange-value">C4</span>
-        </div>
-
-        <div class="control-item"></div>
-            <label for="melodicCoherence">音程の統一感:</label>
-            <input type="range" id="melodicCoherence" min="0" max="100" step="5" value="100">
-            <span id="melodicCoherence-value">100% (跳躍確率: 0%)</span>
+            <label>下限音:</label>
+            <select id="rangeLower">
+                <!-- オプションはJavaScriptで動的に生成 -->
+            </select>
+            <label style="margin-left: 20px;">上限音:</label>
+            <select id="rangeUpper">
+                <!-- オプションはJavaScriptで動的に生成 -->
+            </select>
         </div>
     </div>
 
@@ -43,8 +36,8 @@
         <h3>テンポ と音符 / 休符 の長さ</h3>        
         <div class="control-item">
             <label for="tempo">テンポ:</label>
-            <input type="range" id="tempo" min="60" max="480" step="10" value="120">
-            <span id="tempo-value">120 BPM</span>
+            <input type="range" id="tempo" min="60" max="480" step="10" value="240">
+            <span id="tempo-value">240 BPM</span>
         </div>
         
         <div class="control-item">
@@ -330,7 +323,7 @@
             if (previousNote !== null) {
                 const prevOctave = Math.floor(previousNote / 12);
                 
-                // coherenceが高いほど、前の音��近いオクタ��ブを選びやすくする
+                // coherenceが高いほど、前の音近いオクターブを選びやすくする
                 const random = Math.random() * 100;
                 if (random < coherence) {
                     // 前の音に最も近いオクターブを選択
@@ -363,10 +356,8 @@
                 
                 // 選択された音列に対して音域調整を行う
                 const coherence = parseInt(document.getElementById('melodicCoherence').value);
-                const upperValue = parseInt(document.getElementById('upperRange').value);
-                const lowerValue = parseInt(document.getElementById('lowerRange').value);
-                const upperNote = getBaseNote(true) + getMelodyRange(upperValue, true);
-                const lowerNote = getBaseNote(false) + getMelodyRange(lowerValue, false);
+                const lowerNote = parseInt(document.getElementById('rangeLower').value);
+                const upperNote = parseInt(document.getElementById('rangeUpper').value);
                 
                 // 音域調整された音列を melodyRow に設定（前の12音列の最後の音を考慮）
                 melodyRow = selectedRow.map((note, index) => {
@@ -411,7 +402,7 @@
             if (complexity <= 0) {
                 return "2分音符のみ";
             } else if (complexity <= 25) {
-                return "2分音符 + 4分音符";
+                return "2分音��� + 4分音符";
             } else if (complexity <= 50) {
                 return "2分音符 + 4分音符 + 8分音符";
             } else if (complexity <= 75) {
@@ -476,26 +467,50 @@
             document.getElementById('velocity-value').textContent = e.target.value;
         });
 
-        document.getElementById('upperRange').addEventListener('input', function(e) {
-            const baseNote = getBaseNote(true); // B4
-            const shift = getMelodyRange(parseInt(e.target.value), true);
-            const resultNote = baseNote + shift;
-            document.getElementById('upperRange-value').textContent = midiToNoteName(resultNote);
+        // 音域選択の初期設定
+        const rangeLower = document.getElementById('rangeLower');
+        const rangeUpper = document.getElementById('rangeUpper');
+
+        // 音名とMIDI番号のマッピングを生成
+        function generateNoteOptions() {
+            const notes = [];
+            for (let midi = 21; midi <= 108; midi++) {
+                const noteName = midiToNoteName(midi);
+                notes.push({ midi, noteName });
+            }
+            return notes;
+        }
+
+        // セレクトボックスにオプションを追加
+        const notes = generateNoteOptions();
+        notes.forEach(note => {
+            const lowerOption = new Option(note.noteName, note.midi);
+            const upperOption = new Option(note.noteName, note.midi);
+            rangeLower.add(lowerOption);
+            rangeUpper.add(upperOption);
         });
 
-        document.getElementById('lowerRange').addEventListener('input', function(e) {
-            const baseNote = getBaseNote(false); // C4
-            const shift = getMelodyRange(parseInt(e.target.value), false);
-            const resultNote = baseNote + shift;
-            document.getElementById('lowerRange-value').textContent = midiToNoteName(resultNote);
-        });
+        // 初期値を設定
+        rangeLower.value = "60"; // C4
+        rangeUpper.value = "71"; // B4
 
-        document.getElementById('melodicCoherence').addEventListener('input', function(e) {
-            const value = e.target.value;
-            const jumpProb = 100 - value;
-            document.getElementById('melodicCoherence-value').textContent = 
-                `${value}% (跳躍確率: ${jumpProb}%)`;
-        });
+        function updateRange() {
+            const lowerValue = parseInt(rangeLower.value);
+            const upperValue = parseInt(rangeUpper.value);
+            
+            // 値の制限
+            if (lowerValue > upperValue) {
+                if (this === rangeLower) {
+                    rangeLower.value = upperValue;
+                } else {
+                    rangeUpper.value = lowerValue;
+                }
+            }
+        }
+
+        rangeLower.addEventListener('change', updateRange);
+        rangeUpper.addEventListener('change', updateRange);
+
 
         document.getElementById('tempo').addEventListener('input', function(e) {
             document.getElementById('tempo-value').textContent = `${e.target.value} BPM`;
@@ -509,6 +524,13 @@
         document.getElementById('restProbability').addEventListener('input', function(e) {
             document.getElementById('restProbability-value').textContent = e.target.value + '%';
         });
+
+        // 音程の統一感の初期値を設定（非表示のまま機能させる）
+        const melodicCoherence = document.createElement('input');
+        melodicCoherence.id = 'melodicCoherence';
+        melodicCoherence.type = 'hidden';
+        melodicCoherence.value = '0';  // 初期値: 0%
+        document.body.appendChild(melodicCoherence);
     </script>
 </body>
 </html>
