@@ -16,6 +16,11 @@
             <input type="range" id="velocity" min="0" max="1" step="0.1" value="0.5">
             <span id="velocity-value">0.5</span>
         </div>
+        <div class="control-item">
+            <label for="velocityVariation">ばらつき:</label>
+            <input type="range" id="velocityVariation" min="0" max="100" step="5" value="75">
+            <span id="velocityVariation-value">75%</span>
+        </div>
     </div>
 
     <div class="control-group">
@@ -415,8 +420,12 @@
             }
             sequenceIndex += numNotes;
 
-            // velocityとtempoの調整（既存のコード）
-            const adjustedVelocity = velocity + (Math.random() * 0.2 - 0.1);
+            // velocityとtempoの調整
+            const velocityVariation = parseInt(document.getElementById('velocityVariation').value) / 100;
+            const variationRange = velocityVariation * 0.5; // 最大±50%の変動範囲
+            let adjustedVelocity = velocity + (Math.random() * variationRange * 2 - variationRange);
+            // 0-1の範囲に制限
+            adjustedVelocity = Math.max(0, Math.min(1, adjustedVelocity));
             const adjustedTempo = tempo + (tempo * 0.1 * (Math.random() * 2 - 1));
             const complexity = parseInt(document.getElementById('duration').value);
 
@@ -598,6 +607,10 @@
             
             document.getElementById('chordProbability-value').textContent = 
                 `${value}% (${description})`;
+        });
+
+        document.getElementById('velocityVariation').addEventListener('input', function(e) {
+            document.getElementById('velocityVariation-value').textContent = e.target.value + '%';
         });
     </script>
 </body>
