@@ -8,67 +8,14 @@
 </head>
 <body>
     <h1>ピアノ音楽生成アプリ</h1>
-    
-    <div class="control-group">
-        <h3>音量 / 強弱</h3>
-        <div class="control-item">
-            <label for="velocity">音量:</label>
-            <input type="range" id="velocity" min="0" max="1" step="0.1" value="0.5">
-            <span id="velocity-value">0.5</span>
-        </div>
-        <div class="control-item">
-            <label for="velocityVariation">ばらつき:</label>
-            <input type="range" id="velocityVariation" min="0" max="100" step="5" value="75">
-            <span id="velocityVariation-value">75%</span>
-        </div>
-    </div>
 
     <div class="control-group">
-        <h3>音域 / 動きの量</h3>
-        <div class="control-item">
-            <label>下限音:</label>
-            <select id="rangeLower">
-                <!-- オプションはJavaScriptで動的に生成 -->
-            </select>
-            <label style="margin-left: 20px;">上限音:</label>
-            <select id="rangeUpper">
-                <!-- オプションはJavaScriptで動的に生成 -->
-            </select>
+        <h3>声部の管理</h3>
+        <div id="voices-container">
+            <!-- 声部のコントロールがここに動的に追加される -->
         </div>
-    </div>
-
-    <div class="control-group">
-        <h3>テンポ と音符 / 休符 の長さ</h3>        
         <div class="control-item">
-            <label for="tempo">テンポ:</label>
-            <input type="range" id="tempo" min="60" max="480" step="10" value="240">
-            <span id="tempo-value">240 BPM</span>
-        </div>
-        
-        <div class="control-item">
-            <label for="duration">複雑度:</label>
-            <input type="range" id="duration" min="0" max="100" step="5" value="50">
-            <span id="duration-value">50 (2分音符 + 4分音符 + 8分音符)</span>
-        </div>
-        
-        <div class="control-item">
-            <label for="rest">休符を含める:</label>
-            <input type="checkbox" id="rest" checked>
-        </div>
-        
-        <div class="control-item">
-            <label for="restProbability">休符の確率:</label>
-            <input type="range" id="restProbability" min="10" max="50" step="5" value="25">
-            <span id="restProbability-value">25%</span>
-        </div>
-    </div>
-
-    <div class="control-group">
-        <h3>同時発音数</h3>
-        <div class="control-item">
-            <label for="chordProbability">同時発音の確率:</label>
-            <input type="range" id="chordProbability" min="0" max="100" step="5" value="0">
-            <span id="chordProbability-value">0% (単音のみ)</span>
+            <button id="addVoice">声部を追加</button>
         </div>
     </div>
 
@@ -76,8 +23,258 @@
     <button id="stopButton">停止</button>
 
     <script>
+        class Voice {
+            constructor(id) {
+                this.id = id;
+                this.melodyRow = [];
+                this.baseRow = [];
+                this.rowRetro = [];
+                this.rowInverted = [];
+                this.rowRetroInverted = [];
+                this.sequenceIndex = 0;
+                
+                // 各声部のパラメータ
+                this.params = {
+                    velocity: 0.5,
+                    velocityVariation: 75,
+                    rangeLower: 60,
+                    rangeUpper: 71,
+                    tempo: 240,
+                    duration: 50,
+                    rest: true,
+                    restProbability: 25,
+                    chordProbability: 0,
+                    melodicCoherence: 0
+                };
+                
+                this.createControls();
+            }
+
+            createControls() {
+                const container = document.createElement('div');
+                container.className = 'voice-controls';
+                container.id = `voice-${this.id}`;
+                container.dataset.voiceId = this.id;
+                container.innerHTML = `
+                    <div class="voice-header">
+                        <h4>声部 ${this.id + 1}</h4>
+                        <button class="delete-voice" data-voice-id="${this.id}" type="button">×</button>
+                    </div>
+                    <div class="control-item">
+                        <label>音量:</label>
+                        <input type="range" class="voice-velocity" min="0" max="1" step="0.1" value="${this.params.velocity}">
+                        <span class="voice-velocity-value">${this.params.velocity}</span>
+                    </div>
+                    <div class="control-item">
+                        <label>音量のばらつき:</label>
+                        <input type="range" class="voice-velocity-variation" min="0" max="100" step="5" value="${this.params.velocityVariation}">
+                        <span class="voice-velocity-variation-value">${this.params.velocityVariation}%</span>
+                    </div>
+                    <div class="control-item">
+                        <label>テンポ:</label>
+                        <input type="range" class="voice-tempo" min="60" max="480" step="10" value="${this.params.tempo}">
+                        <span class="voice-tempo-value">${this.params.tempo} BPM</span>
+                    </div>
+                    <div class="control-item">
+                        <label>複雑度:</label>
+                        <input type="range" class="voice-duration" min="0" max="100" step="5" value="${this.params.duration}">
+                        <span class="voice-duration-value">${this.params.duration} (${getDurationDescription(this.params.duration)})</span>
+                    </div>
+                    <div class="control-item">
+                        <label>音域:</label>
+                        <select class="voice-range-lower">
+                            ${this.generateNoteOptionsHtml(this.params.rangeLower)}
+                        </select>
+                        <span>から</span>
+                        <select class="voice-range-upper">
+                            ${this.generateNoteOptionsHtml(this.params.rangeUpper)}
+                        </select>
+                    </div>
+                    <div class="control-item">
+                        <label>休符を含める:</label>
+                        <input type="checkbox" class="voice-rest" ${this.params.rest ? 'checked' : ''}>
+                    </div>
+                    <div class="control-item">
+                        <label>休符の確率:</label>
+                        <input type="range" class="voice-rest-probability" min="10" max="50" step="5" value="${this.params.restProbability}">
+                        <span class="voice-rest-probability-value">${this.params.restProbability}%</span>
+                    </div>
+                    <div class="control-item">
+                        <label>同時発音の確率:</label>
+                        <input type="range" class="voice-chord-probability" min="0" max="100" step="5" value="${this.params.chordProbability}">
+                        <span class="voice-chord-probability-value">${this.params.chordProbability}% (単音のみ)</span>
+                    </div>
+                `;
+
+                document.getElementById('voices-container').appendChild(container);
+                
+                const deleteButton = container.querySelector('.delete-voice');
+                deleteButton.addEventListener('click', () => {
+                    removeVoice(parseInt(deleteButton.dataset.voiceId));
+                });
+                
+                this.setupEventListeners(container);
+            }
+
+            setupEventListeners(container) {
+                // 各パラメータの変更を監視
+                container.querySelector('.voice-velocity').addEventListener('input', (e) => {
+                    this.params.velocity = parseFloat(e.target.value);
+                    container.querySelector('.voice-velocity-value').textContent = e.target.value;
+                });
+
+                container.querySelector('.voice-tempo').addEventListener('input', (e) => {
+                    this.params.tempo = parseInt(e.target.value);
+                    container.querySelector('.voice-tempo-value').textContent = `${e.target.value} BPM`;
+                });
+
+                // 音域の変更を監視
+                const rangeLower = container.querySelector('.voice-range-lower');
+                const rangeUpper = container.querySelector('.voice-range-upper');
+                
+                rangeLower.addEventListener('change', () => {
+                    this.params.rangeLower = parseInt(rangeLower.value);
+                    if (this.params.rangeLower > this.params.rangeUpper) {
+                        this.params.rangeLower = this.params.rangeUpper;
+                        rangeLower.value = this.params.rangeUpper;
+                    }
+                });
+
+                rangeUpper.addEventListener('change', () => {
+                    this.params.rangeUpper = parseInt(rangeUpper.value);
+                    if (this.params.rangeUpper < this.params.rangeLower) {
+                        this.params.rangeUpper = this.params.rangeLower;
+                        rangeUpper.value = this.params.rangeLower;
+                    }
+                });
+
+                container.querySelector('.voice-velocity-variation').addEventListener('input', (e) => {
+                    this.params.velocityVariation = parseInt(e.target.value);
+                    container.querySelector('.voice-velocity-variation-value').textContent = `${e.target.value}%`;
+                });
+
+                container.querySelector('.voice-duration').addEventListener('input', (e) => {
+                    this.params.duration = parseInt(e.target.value);
+                    container.querySelector('.voice-duration-value').textContent = 
+                        `${e.target.value} (${getDurationDescription(parseInt(e.target.value))})`;
+                });
+
+                container.querySelector('.voice-rest').addEventListener('change', (e) => {
+                    this.params.rest = e.target.checked;
+                });
+
+                container.querySelector('.voice-rest-probability').addEventListener('input', (e) => {
+                    this.params.restProbability = parseInt(e.target.value);
+                    container.querySelector('.voice-rest-probability-value').textContent = `${e.target.value}%`;
+                });
+
+                container.querySelector('.voice-chord-probability').addEventListener('input', (e) => {
+                    this.params.chordProbability = parseInt(e.target.value);
+                    const description = this.getChordProbabilityDescription(e.target.value);
+                    container.querySelector('.voice-chord-probability-value').textContent = `${e.target.value}% (${description})`;
+                });
+            }
+
+            generateNextNote() {
+                if (!this.melodyRow.length || this.sequenceIndex >= this.melodyRow.length) {
+                    const lastNote = this.melodyRow.length ? this.melodyRow[this.melodyRow.length - 1] : null;
+                    
+                    if (!this.melodyRow.length || Math.random() < 0.25) {
+                        this.baseRow = generateNewSequence();
+                        this.rowRetro = retrograde(this.baseRow);
+                        this.rowInverted = inversion(this.baseRow);
+                        this.rowRetroInverted = retrograde(this.rowInverted);
+                    }
+                    
+                    const selectedRow = [
+                        this.baseRow, 
+                        this.rowRetro, 
+                        this.rowInverted, 
+                        this.rowRetroInverted
+                    ][Math.floor(Math.random() * 4)];
+                    
+                    this.melodyRow = selectedRow.map((note, index) => {
+                        const previousNote = index > 0 ? this.melodyRow[index - 1] : lastNote;
+                        return adjustNoteToRange(note, this.params.rangeLower, this.params.rangeUpper, 0, previousNote);
+                    }).filter(note => note !== null);
+                    
+                    this.sequenceIndex = 0;
+                }
+
+                const chordProb = this.params.chordProbability;
+                let numNotes = 1;
+                
+                if (chordProb > 0) {
+                    const random = Math.random() * 100;
+                    if (chordProb <= 50) {
+                        const twoNoteProb = chordProb;
+                        if (random < twoNoteProb) numNotes = 2;
+                    } else {
+                        const ratio = (chordProb - 50) / 50;
+                        const threeNoteProb = ratio * 33;
+                        const remainingProb = 100 - threeNoteProb;
+                        const oneAndTwoNoteProb = remainingProb / 2;
+
+                        if (random < threeNoteProb) {
+                            numNotes = 3;
+                        } else if (random < threeNoteProb + oneAndTwoNoteProb) {
+                            numNotes = 2;
+                        }
+                    }
+                }
+
+                const remainingNotes = this.melodyRow.length - this.sequenceIndex;
+                numNotes = Math.min(numNotes, remainingNotes);
+
+                const notes = [];
+                for (let i = 0; i < numNotes; i++) {
+                    notes.push(this.melodyRow[this.sequenceIndex + i]);
+                }
+                this.sequenceIndex += numNotes;
+
+                const velocityVariation = this.params.velocityVariation / 100;
+                const variationRange = velocityVariation * 0.5;
+                let adjustedVelocity = this.params.velocity + (Math.random() * variationRange * 2 - variationRange);
+                adjustedVelocity = Math.max(0, Math.min(1, adjustedVelocity));
+                const adjustedTempo = this.params.tempo + (this.params.tempo * 0.1 * (Math.random() * 2 - 1));
+
+                return {
+                    notes: notes,
+                    duration: getNoteDuration(this.params.duration),
+                    velocity: adjustedVelocity,
+                    tempo: adjustedTempo
+                };
+            }
+
+            generateNoteOptionsHtml(selectedValue) {
+                let html = '';
+                for (let midi = 21; midi <= 108; midi++) {
+                    const noteName = midiToNoteName(midi);
+                    html += `<option value="${midi}" ${midi === selectedValue ? 'selected' : ''}>${noteName}</option>`;
+                }
+                return html;
+            }
+
+            getChordProbabilityDescription(value) {
+                if (value === 0) return '単音のみ';
+                if (value <= 50) return '2音まで';
+                return '3音まで';
+            }
+        }
+
         let isPlaying = false;
-        let intervalId; // インターバルIDを保持する変数
+        let intervalId;
+        const voices = [new Voice(0)]; // 初期声部を作成
+
+        // 声部の追加ボタンのイベントリスナー
+        document.getElementById('addVoice').addEventListener('click', () => {
+            const newId = voices.length;
+            const newVoice = new Voice(newId);
+            voices.push(newVoice);
+        });
+
+        // 再生ボタンを有効化
+        document.getElementById('playButton').removeAttribute('disabled');
 
         // 各音階に対応するピアノサンプルをTone.Bufferで読み込む
         const pianos = {
@@ -409,7 +606,7 @@
                 }
             }
 
-            // 残りの音数を確認
+            // ���りの音数を確認
             const remainingNotes = melodyRow.length - sequenceIndex;
             numNotes = Math.min(numNotes, remainingNotes);
 
@@ -468,51 +665,48 @@
                 isPlaying = true;
                 
                 function playNextNote() {
-                    const velocity = parseFloat(document.getElementById('velocity').value);
-                    const tempo = parseInt(document.getElementById('tempo').value);
-                    const includeRest = document.getElementById('rest').checked;
-                    
-                    // 休符を含める設定がオンの場合、設定された確率で休符を挿入
-                    if (includeRest) {
-                        const restProb = parseInt(document.getElementById('restProbability').value) / 100;
-                        if (Math.random() < restProb) {
-                            const complexity = parseInt(document.getElementById('duration').value);
-                            const restDuration = getNoteDuration(complexity);
-                            const interval = getDurationInMilliseconds(restDuration, tempo);
-                            
-                            clearInterval(intervalId);
-                            intervalId = setInterval(playNextNote, interval);
-                            return;
+                    if (!isPlaying) return;  // 追加: 停止状態なら処理を中断
+
+                    voices.forEach(voice => {
+                        if (voice.params.rest) {
+                            const restProb = voice.params.restProbability / 100;
+                            if (Math.random() < restProb) {
+                                return;  // この声部は休符
+                            }
                         }
-                    }
-                    
-                    const musicData = generateNextNote(velocity, tempo);
-                    
-                    musicData.notes.forEach(note => {
-                        pianoSampler.triggerAttackRelease(
-                            Tone.Frequency(note, "midi").toNote(),
-                            musicData.duration,
-                            undefined,
-                            musicData.velocity
-                        );
+                        
+                        const musicData = voice.generateNextNote();
+                        
+                        musicData.notes.forEach(note => {
+                            pianoSampler.triggerAttackRelease(
+                                Tone.Frequency(note, "midi").toNote(),
+                                musicData.duration,
+                                undefined,
+                                musicData.velocity
+                            );
+                        });
                     });
-                    
-                    Tone.Transport.bpm.value = musicData.tempo;
+
+                    // 次の音符のスケジューリング
+                    const shortestInterval = Math.min(...voices.map(voice => {
+                        const duration = getNoteDuration(voice.params.duration);
+                        return getDurationInMilliseconds(duration, voice.params.tempo);
+                    }));
 
                     clearInterval(intervalId);
-                    const interval = getDurationInMilliseconds(musicData.duration, musicData.tempo);
-                    intervalId = setInterval(playNextNote, interval);
+                    if (isPlaying) {  // 追加: 再生中の場合のみ次の音をスケジュール
+                        intervalId = setInterval(playNextNote, shortestInterval);
+                    }
                 }
 
                 playNextNote();
             }
         });
 
-        document.getElementById('stopButton').addEventListener('click', () => {
-            if (isPlaying) {
-                clearInterval(intervalId);
-                isPlaying = false;
-            }
+        document.getElementById('stopButton').addEventListener('click', function() {
+            isPlaying = false;
+            clearInterval(intervalId);
+            intervalId = null;
         });
 
         document.getElementById('velocity').addEventListener('input', function(e) {
@@ -612,6 +806,41 @@
         document.getElementById('velocityVariation').addEventListener('input', function(e) {
             document.getElementById('velocityVariation-value').textContent = e.target.value + '%';
         });
+
+        // 声部の削除関数
+        function removeVoice(targetId) {
+            if (voices.length <= 1) return; // 最後の1つは削除不可
+
+            // 指定されたIDの声部を削除
+            const index = voices.findIndex(voice => voice.id === targetId);
+            if (index !== -1) {
+                // DOM要素の削除
+                const container = document.getElementById(`voice-${targetId}`);
+                if (container) {
+                    container.remove();
+                }
+
+                // 配列から削除
+                voices.splice(index, 1);
+
+                // 残りの声部のIDを振り直し
+                const remainingContainers = document.querySelectorAll('.voice-controls');
+                remainingContainers.forEach((container, newId) => {
+                    // 対応する声部を取得
+                    const voice = voices[newId];
+                    if (voice) {
+                        // 声部のIDを更新
+                        voice.id = newId;
+                        
+                        // DOM要素を更新
+                        container.id = `voice-${newId}`;
+                        container.dataset.voiceId = newId;
+                        container.querySelector('h4').textContent = `声部 ${newId + 1}`;
+                        container.querySelector('.delete-voice').dataset.voiceId = newId;
+                    }
+                });
+            }
+        }
     </script>
 </body>
 </html>
