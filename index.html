@@ -26,6 +26,9 @@
         class Voice {
             constructor(id) {
                 this.id = id;
+                // タイマー関連のプロパティを追加
+                this.intervalId = null;
+                this.nextNoteTime = 0;
                 this.melodyRow = [];
                 this.baseRow = [];
                 this.rowRetro = [];
@@ -114,6 +117,40 @@
                 });
                 
                 this.setupEventListeners(container);
+            }
+
+            // 声部独自の再生制御
+            startPlaying() {
+                if (this.intervalId) return;
+                this.scheduleNextNote();
+            }
+
+            stopPlaying() {
+                if (this.intervalId) {
+                    clearTimeout(this.intervalId);
+                    this.intervalId = null;
+                }
+            }
+
+            scheduleNextNote() {
+                const duration = getNoteDuration(this.params.duration);
+                const interval = getDurationInMilliseconds(duration, this.params.tempo);
+
+                this.intervalId = setTimeout(() => {
+                    if (!isPlaying) return;
+
+                    // WebSocket経由で音符生成
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({
+                            type: 'generate_notes',
+                            voiceId: this.id,
+                            params: this.params
+                        }));
+                    }
+
+                    // 次の音符をスケジュール
+                    this.scheduleNextNote();
+                }, interval);
             }
 
             setupEventListeners(container) {
@@ -271,6 +308,20 @@
             const newId = voices.length;
             const newVoice = new Voice(newId);
             voices.push(newVoice);
+
+            // 再生中なら新しい声部の再生も開始
+            if (isPlaying) {
+                newVoice.startPlaying();
+            }
+
+            // WebSocketが接続中なら新しい声部の初期化をサーバーに通知
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'voice_added',
+                    voiceId: newId,
+                    params: newVoice.params
+                }));
+            }
         });
 
         // 再生ボタンを有効化
@@ -549,91 +600,6 @@
             return pitchClass + (selectedOctave * 12);
         }
 
-        function generateNextNote(velocity, tempo) {
-            if (!melodyRow.length || sequenceIndex >= melodyRow.length) {
-                const lastNote = melodyRow.length ? melodyRow[melodyRow.length - 1] : null;
-                
-                if (!melodyRow.length || Math.random() < 0.25) {
-                    baseRow = generateNewSequence();
-                    // 各変形を生成
-                    rowRetro = retrograde(baseRow);
-                    rowInverted = inversion(baseRow);
-                    rowRetroInverted = retrograde(rowInverted);
-                }
-                
-                // 基本形、逆行形、転回形、逆行転回形からランダムに選択
-                const selectedRow = [baseRow, rowRetro, rowInverted, rowRetroInverted][Math.floor(Math.random() * 4)];
-                
-                // 選択された音列に対して音域調整を行う
-                const coherence = parseInt(document.getElementById('melodicCoherence').value);
-                const lowerNote = parseInt(document.getElementById('rangeLower').value);
-                const upperNote = parseInt(document.getElementById('rangeUpper').value);
-                
-                // 音域調整された音列を melodyRow に設定（前の12音列の最後の音を考慮）
-                melodyRow = selectedRow.map((note, index) => {
-                    const previousNote = index > 0 ? melodyRow[index - 1] : lastNote;
-                    return adjustNoteToRange(note, lowerNote, upperNote, coherence, previousNote);
-                }).filter(note => note !== null); // null の音（範囲外）を除外
-                
-                sequenceIndex = 0;
-            }
-
-            const chordProb = parseInt(document.getElementById('chordProbability').value);
-            let numNotes = 1;
-            
-            if (chordProb > 0) {
-                const random = Math.random() * 100;
-                if (chordProb <= 50) {
-                    // 0-50%の範囲では1音か2音
-                    // 2音の確率を線形補間: 0% -> 50%
-                    const twoNoteProb = chordProb; // 0-50の値がそのまま2音を鳴らす確率になる
-                    if (random < twoNoteProb) numNotes = 2;
-                } else {
-                    // 50-100%の範囲では1音、2音、3音
-                    // 3音の確率を線形補間: 0% -> 33%
-                    // 2音と1音の確率は均等に減少: 50% -> 33%
-                    const ratio = (chordProb - 50) / 50; // 0-1の範囲
-                    const threeNoteProb = ratio * 33; // 0-33%
-                    const remainingProb = 100 - threeNoteProb;
-                    const oneAndTwoNoteProb = remainingProb / 2; // 残りを1音と2音で均等に分ける
-
-                    if (random < threeNoteProb) {
-                        numNotes = 3;
-                    } else if (random < threeNoteProb + oneAndTwoNoteProb) {
-                        numNotes = 2;
-                    }
-                    // else: numNotes = 1 (デフォルト値のまま)
-                }
-            }
-
-            // ���りの音数を確認
-            const remainingNotes = melodyRow.length - sequenceIndex;
-            numNotes = Math.min(numNotes, remainingNotes);
-
-            // 複数の音を取得
-            const notes = [];
-            for (let i = 0; i < numNotes; i++) {
-                notes.push(melodyRow[sequenceIndex + i]);
-            }
-            sequenceIndex += numNotes;
-
-            // velocityとtempoの調整
-            const velocityVariation = parseInt(document.getElementById('velocityVariation').value) / 100;
-            const variationRange = velocityVariation * 0.5; // 最大±50%の変動範囲
-            let adjustedVelocity = velocity + (Math.random() * variationRange * 2 - variationRange);
-            // 0-1の範囲に制限
-            adjustedVelocity = Math.max(0, Math.min(1, adjustedVelocity));
-            const adjustedTempo = tempo + (tempo * 0.1 * (Math.random() * 2 - 1));
-            const complexity = parseInt(document.getElementById('duration').value);
-
-            return {
-                notes: notes,
-                duration: getNoteDuration(complexity),
-                velocity: adjustedVelocity,
-                tempo: adjustedTempo
-            };
-        }
-
         function midiToNoteName(midi) {
             const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
             const note = noteNames[midi % 12];
@@ -659,6 +625,44 @@
             }
         }
 
+        // WebSocket接続の管理
+        let ws;
+        let clientId = Date.now().toString();
+
+        // WebSocket接続を確立する関数
+        function connectWebSocket() {
+            const wsUrl = window.location.protocol === 'https:' 
+                ? `wss://${window.location.host}/ws/${clientId}`
+                : `ws://${window.location.host}/ws/${clientId}`;
+            
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                ws.send(JSON.stringify({
+                    type: 'init',
+                    clientId: clientId
+                }));
+            };
+
+            // onmessage ハンドラをここに移動
+            ws.onmessage = (event) => {
+                // console.log('Received message:', event.data);  // デバッグ用ログ追加
+                handleWebSocketMessage(event);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                setTimeout(connectWebSocket, 5000);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        connectWebSocket();
+
         document.getElementById('playButton').addEventListener('click', async () => {
             if (!isPlaying) {
                 await Tone.start();
@@ -667,16 +671,15 @@
                 function playNextNote() {
                     if (!isPlaying) return;  // 追加: 停止状態なら処理を中断
 
-                    voices.forEach(voice => {
+                    voices.forEach(voice => {                        
+                        // 従来の処理
                         if (voice.params.rest) {
                             const restProb = voice.params.restProbability / 100;
                             if (Math.random() < restProb) {
                                 return;  // この声部は休符
                             }
                         }
-                        
                         const musicData = voice.generateNextNote();
-                        
                         musicData.notes.forEach(note => {
                             pianoSampler.triggerAttackRelease(
                                 Tone.Frequency(note, "midi").toNote(),
@@ -699,14 +702,43 @@
                     }
                 }
 
-                playNextNote();
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    voices.forEach(voice => voice.startPlaying());
+                } else {
+                    playNextNote();
+                }
             }
         });
 
+        // WebSocketメッセージハンドラ
+        function handleWebSocketMessage(event) {
+            const data = JSON.parse(event.data);
+            switch (data.type) {
+                case 'init_response':
+                    console.log('Initialization complete');
+                    break;
+                case 'note_data':
+                    const voice = voices.find(v => v.id === data.voiceId);
+                    if (voice && data.noteData) {
+                        data.noteData.notes.forEach(note => {
+                            pianoSampler.triggerAttackRelease(
+                                Tone.Frequency(note, "midi").toNote(),
+                                data.noteData.duration,
+                                undefined,
+                                data.noteData.velocity
+                            );
+                        });
+                    }
+                    break;
+                case 'error':
+                    console.error('Server error:', data.message);
+                    break;
+            }
+        }
+
         document.getElementById('stopButton').addEventListener('click', function() {
             isPlaying = false;
-            clearInterval(intervalId);
-            intervalId = null;
+            voices.forEach(voice => voice.stopPlaying());
         });
 
         document.getElementById('velocity').addEventListener('input', function(e) {
@@ -794,7 +826,7 @@
                 const ratio = (value - 50) / 50; // 0-1の範囲
                 const threeNoteProb = Math.round(ratio * 33); // 0-33%
                 const remainingProb = 100 - threeNoteProb;
-                const oneAndTwoNoteProb = Math.round(remainingProb / 2); // 残りを1音と2音で均等に分ける
+                const oneAndTwoNoteProb = Math.round(remainingProb / 2); // 残りを1音と2音均等に分ける
                 
                 description = `単音(${oneAndTwoNoteProb}%) + 2音(${oneAndTwoNoteProb}%) + 3音(${threeNoteProb}%)`;
             }
@@ -814,6 +846,17 @@
             // 指定されたIDの声部を削除
             const index = voices.findIndex(voice => voice.id === targetId);
             if (index !== -1) {
+                // 再生中なら該当の声部の再生を停止
+                voices[index].stopPlaying();
+
+                // WebSocketが接続中なら声部の削除をサーバーに通知
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'voice_removed',
+                        voiceId: targetId
+                    }));
+                }
+
                 // DOM要素の削除
                 const container = document.getElementById(`voice-${targetId}`);
                 if (container) {
@@ -837,6 +880,16 @@
                         container.dataset.voiceId = newId;
                         container.querySelector('h4').textContent = `声部 ${newId + 1}`;
                         container.querySelector('.delete-voice').dataset.voiceId = newId;
+
+                        // WebSocketが接続中なら声部のID更新をサーバーに通知
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({
+                                type: 'voice_updated',
+                                oldId: targetId,
+                                newId: newId,
+                                params: voice.params
+                            }));
+                        }
                     }
                 });
             }
