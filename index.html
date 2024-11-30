@@ -26,9 +26,6 @@
         class Voice {
             constructor(id) {
                 this.id = id;
-                // タイマー関連のプロパティを追加
-                this.intervalId = null;
-                this.nextNoteTime = 0;
                 this.melodyRow = [];
                 this.baseRow = [];
                 this.rowRetro = [];
@@ -49,6 +46,11 @@
                     chordProbability: 0,
                     melodicCoherence: 0
                 };
+
+                // スケジューリング用のプロパティをシンプルに
+                this.nextNoteTime = null;  // 次の音を鳴らす時間
+                this.schedulerTimer = null;
+                this.isActive = false;
                 
                 this.createControls();
             }
@@ -119,27 +121,26 @@
                 this.setupEventListeners(container);
             }
 
-            // 声部独自の再生制御
-            startPlaying() {
-                if (this.intervalId) return;
-                this.scheduleNextNote();
-            }
+            scheduleNextNote(noteData) {
+                if (!this.isActive) return;
 
-            stopPlaying() {
-                if (this.intervalId) {
-                    clearTimeout(this.intervalId);
-                    this.intervalId = null;
-                }
-            }
+                // 現在の音を再生
+                noteData.notes.forEach(note => {
+                    pianoSampler.triggerAttackRelease(
+                        Tone.Frequency(note, "midi").toNote(),
+                        noteData.duration,
+                        this.nextNoteTime==null ? undefined : this.nextNoteTime,
+                        noteData.velocity
+                    );
+                });
 
-            scheduleNextNote() {
-                const duration = getNoteDuration(this.params.duration);
-                const interval = getDurationInMilliseconds(duration, this.params.tempo);
+                // 次の音を鳴らす時間を計算
+                const duration = getDurationInMilliseconds(noteData.duration, this.params.tempo);
+                this.nextNoteTime = Tone.now() + (duration / 1000);
 
-                this.intervalId = setTimeout(() => {
-                    if (!isPlaying) return;
-
-                    // WebSocket経由で音符生成
+                // 次の音を取得するタイマーをセット
+                this.schedulerTimer = setTimeout(() => {
+                    // WebSocketで次の音符を要求
                     if (ws && ws.readyState === WebSocket.OPEN) {
                         ws.send(JSON.stringify({
                             type: 'generate_notes',
@@ -147,10 +148,29 @@
                             params: this.params
                         }));
                     }
+                }, duration);
+            }
 
-                    // 次の音符をスケジュール
-                    this.scheduleNextNote();
-                }, interval);
+            startPlaying() {
+                this.isActive = true;
+                this.nextNoteTime = null;
+
+                // 最初の音を要求
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'generate_notes',
+                        voiceId: this.id,
+                        params: this.params
+                    }));
+                }
+            }
+
+            stopPlaying() {
+                this.isActive = false;
+                if (this.schedulerTimer) {
+                    clearTimeout(this.schedulerTimer);
+                    this.schedulerTimer = null;
+                }
             }
 
             setupEventListeners(container) {
@@ -720,14 +740,7 @@
                 case 'note_data':
                     const voice = voices.find(v => v.id === data.voiceId);
                     if (voice && data.noteData) {
-                        data.noteData.notes.forEach(note => {
-                            pianoSampler.triggerAttackRelease(
-                                Tone.Frequency(note, "midi").toNote(),
-                                data.noteData.duration,
-                                undefined,
-                                data.noteData.velocity
-                            );
-                        });
+                        voice.scheduleNextNote(data.noteData);
                     }
                     break;
                 case 'error':
