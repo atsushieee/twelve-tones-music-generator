@@ -57,9 +57,10 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             elif data["type"] == "generate_notes":
                 voice_id = data["voiceId"]
                 params = data["params"]
+                duration = data["duration"]
                 
                 # 音符生成
-                note_data = music_generator.generate_next_note(client_id, voice_id, params)
+                note_data = music_generator.generate_next_notes(client_id, voice_id, params, duration)
                 response = {
                     "type": "note_data",
                     "voiceId": voice_id,

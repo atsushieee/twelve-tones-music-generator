@@ -51,6 +51,7 @@
                 this.nextNoteTime = null;  // 次の音を鳴らす時間
                 this.schedulerTimer = null;
                 this.isActive = false;
+                this.noteQueue = []; // 音情報のキューを追加
                 
                 this.createControls();
             }
@@ -121,15 +122,20 @@
                 this.setupEventListeners(container);
             }
 
-            scheduleNextNote(noteData) {
+            scheduleNextNote() {
                 if (!this.isActive) return;
+                if (this.noteQueue.length === 0) {
+                    setTimeout(() => this.scheduleNextNote(), 100);
+                }
+
+                const noteData = this.noteQueue.shift(); // キューから音情報を取得
 
                 // 現在の音を再生
                 noteData.notes.forEach(note => {
                     pianoSampler.triggerAttackRelease(
                         Tone.Frequency(note, "midi").toNote(),
                         noteData.duration,
-                        this.nextNoteTime==null ? undefined : this.nextNoteTime,
+                        this.nextNoteTime == null ? undefined : this.nextNoteTime,
                         noteData.velocity
                     );
                 });
@@ -138,31 +144,31 @@
                 const duration = getDurationInMilliseconds(noteData.duration, this.params.tempo);
                 this.nextNoteTime = Tone.now() + (duration / 1000);
 
-                // 次の音を取得するタイマーをセット
-                this.schedulerTimer = setTimeout(() => {
-                    // WebSocketで次の音符を要求
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({
-                            type: 'generate_notes',
-                            voiceId: this.id,
-                            params: this.params
-                        }));
-                    }
-                }, duration);
+                // 次の音符を再帰的にスケジュール
+                setTimeout(() => this.scheduleNextNote(), duration);
+            }
+
+            fetchNotesIfNeeded() {
+                if (!this.isActive) return;
+                const minQueueLength = 5; // キューに保持しておく最小の音情報数
+                if (this.noteQueue.length < minQueueLength && ws && ws.readyState === WebSocket.OPEN) {
+                    const notesToFetch = minQueueLength - this.noteQueue.length;
+                    ws.send(JSON.stringify({
+                        type: 'generate_notes',
+                        voiceId: this.id,
+                        params: this.params,
+                        duration: notesToFetch
+                    }));
+                }
+                // 次の音符を再帰的にスケジュール
+                setTimeout(() => this.fetchNotesIfNeeded(), 100);
             }
 
             startPlaying() {
                 this.isActive = true;
                 this.nextNoteTime = null;
-
-                // 最初の音を要求
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                        type: 'generate_notes',
-                        voiceId: this.id,
-                        params: this.params
-                    }));
-                }
+                this.fetchNotesIfNeeded(); // 再生開始時に音情報を取得
+                this.scheduleNextNote(); // 最初の音を再生するために呼び出す
             }
 
             stopPlaying() {
@@ -740,7 +746,7 @@
                 case 'note_data':
                     const voice = voices.find(v => v.id === data.voiceId);
                     if (voice && data.noteData) {
-                        voice.scheduleNextNote(data.noteData);
+                        voice.noteQueue.push(...data.noteData); // 音情報をキューに追加
                     }
                     break;
                 case 'error':

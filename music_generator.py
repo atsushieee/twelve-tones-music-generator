@@ -110,93 +110,98 @@ class MusicGenerator:
             ]
             return random.choices(['2n', '4n', '8n', '16n', '32n'], weights=weights)[0]
 
-    def generate_next_note(self, client_id: str, voice_id: int, params: Dict) -> Dict:
+    def generate_next_notes(self, client_id: str, voice_id: int, params: Dict, duration: int = 1) -> List[Dict]:
         """12音技法に基づいて次の音符を生成"""
         state = self.get_voice_state(client_id, voice_id)
         if not state:
             self.init_voice_state(client_id, voice_id)
             state = self.get_voice_state(client_id, voice_id)
 
+        notes_data = []
 
-        # duration, ベロシティとテンポの処理
-        adjusted_duration = self.get_note_duration(params["duration"])
-        velocity_variation = params["velocityVariation"] / 100
-        variation_range = velocity_variation * 0.5
-        adjusted_velocity = params["velocity"] + (random.random() * variation_range * 2 - variation_range)
-        adjusted_velocity = max(0, min(1, adjusted_velocity))
-        
-        adjusted_tempo = params["tempo"] + (params["tempo"] * 0.1 * (random.random() * 2 - 1))
+        for _ in range(duration):
+            # duration, ベロシティとテンポの処理
+            adjusted_duration = self.get_note_duration(params["duration"])
+            velocity_variation = params["velocityVariation"] / 100
+            variation_range = velocity_variation * 0.5
+            adjusted_velocity = params["velocity"] + (random.random() * variation_range * 2 - variation_range)
+            adjusted_velocity = max(0, min(1, adjusted_velocity))
+            
+            adjusted_tempo = params["tempo"] + (params["tempo"] * 0.1 * (random.random() * 2 - 1))
 
-        # 休符の処理
-        if params["rest"] and (random.random() < params["restProbability"] / 100):
-            return {
-                "notes": [],
+            # 休符の処理
+            if params["rest"] and (random.random() < params["restProbability"] / 100):
+                notes_data.append({
+                    "notes": [],
+                    "duration": adjusted_duration,
+                    "velocity": adjusted_velocity,
+                    "tempo": adjusted_tempo
+                })
+                continue
+
+            # 現在のmelody_rowを使い切ったか、まだ生成していない場合
+            if not state.melody_row or state.sequence_index >= len(state.melody_row):
+                # 25%の確率で新しい12音列を生成
+                if not state.melody_row or random.random() < 0.25:
+                    state.base_row = self.generate_new_sequence()
+                    state.row_retro = self.retrograde(state.base_row)
+                    state.row_inverted = self.inversion(state.base_row)
+                    state.row_retro_inverted = self.retrograde(state.row_inverted)
+
+                # 4つの行から1つをランダムに選択
+                selected_row = random.choice([
+                    state.base_row,
+                    state.row_retro,
+                    state.row_inverted,
+                    state.row_retro_inverted
+                ])
+
+                state.melody_row = []
+                
+                for i, note in enumerate(selected_row):
+                    adjusted_note = self.adjust_note_to_range(
+                        note,
+                        params["rangeLower"],
+                        params["rangeUpper"]
+                    )
+                    if adjusted_note is not None:
+                        state.melody_row.append(adjusted_note)
+
+                state.sequence_index = 0
+
+            # 和音の生成
+            chord_prob = params["chordProbability"]
+            num_notes = 1
+            
+            if chord_prob > 0:
+                random_value = random.random() * 100
+                if chord_prob <= 50:
+                    if random_value < chord_prob:
+                        num_notes = 2
+                else:
+                    ratio = (chord_prob - 50) / 50
+                    three_note_prob = ratio * 33
+                    remaining_prob = 100 - three_note_prob
+                    if random_value < three_note_prob:
+                        num_notes = 3
+                    elif random_value < three_note_prob + remaining_prob/2:
+                        num_notes = 2
+
+            # 残りの音符数を考慮
+            remaining_notes = len(state.melody_row) - state.sequence_index
+            num_notes = min(num_notes, remaining_notes)
+
+            # 音符の取得
+            notes = []
+            for i in range(num_notes):
+                notes.append(state.melody_row[state.sequence_index + i])
+            state.sequence_index += num_notes
+
+            notes_data.append({
+                "notes": notes,
                 "duration": adjusted_duration,
                 "velocity": adjusted_velocity,
                 "tempo": adjusted_tempo
-            }
+            })
 
-        # 現在のmelody_rowを使い切ったか、まだ生成していない場合
-        if not state.melody_row or state.sequence_index >= len(state.melody_row):
-            # 25%の確率で新しい12音列を生成
-            if not state.melody_row or random.random() < 0.25:
-                state.base_row = self.generate_new_sequence()
-                state.row_retro = self.retrograde(state.base_row)
-                state.row_inverted = self.inversion(state.base_row)
-                state.row_retro_inverted = self.retrograde(state.row_inverted)
-
-            # 4つの行から1つをランダムに選択
-            selected_row = random.choice([
-                state.base_row,
-                state.row_retro,
-                state.row_inverted,
-                state.row_retro_inverted
-            ])
-
-            state.melody_row = []
-            
-            for i, note in enumerate(selected_row):
-                adjusted_note = self.adjust_note_to_range(
-                    note,
-                    params["rangeLower"],
-                    params["rangeUpper"]
-                )
-                if adjusted_note is not None:
-                    state.melody_row.append(adjusted_note)
-
-            state.sequence_index = 0
-
-        # 和音の生成
-        chord_prob = params["chordProbability"]
-        num_notes = 1
-        
-        if chord_prob > 0:
-            random_value = random.random() * 100
-            if chord_prob <= 50:
-                if random_value < chord_prob:
-                    num_notes = 2
-            else:
-                ratio = (chord_prob - 50) / 50
-                three_note_prob = ratio * 33
-                remaining_prob = 100 - three_note_prob
-                if random_value < three_note_prob:
-                    num_notes = 3
-                elif random_value < three_note_prob + remaining_prob/2:
-                    num_notes = 2
-
-        # 残りの音符数を考慮
-        remaining_notes = len(state.melody_row) - state.sequence_index
-        num_notes = min(num_notes, remaining_notes)
-
-        # 音符の取得
-        notes = []
-        for i in range(num_notes):
-            notes.append(state.melody_row[state.sequence_index + i])
-        state.sequence_index += num_notes
-
-        return {
-            "notes": notes,
-            "duration": adjusted_duration,
-            "velocity": adjusted_velocity,
-            "tempo": adjusted_tempo
-        }
+        return notes_data
