@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Dict, Union, Optional
 import random
+from scale_manager import ScaleManager
 
 
 @dataclass
@@ -55,6 +56,26 @@ class MusicGenerator:
         base_note = row[0]
         inverted = [base_note - (note - base_note) for note in row]
         return [(((note - 60 + 12) % 12) + 60) for note in inverted]
+    
+    def snap_note(
+        self, 
+        note: int, 
+        scale_pcs: List[int]
+    ) -> int:
+        """
+        音符をスケールにスナップする。
+        """
+        pc = note % 12
+        octave = note // 12
+        if scale_pcs is None:
+            return note
+        distances = [(s, min(abs(s - pc), 12 - abs(s - pc))) for s in scale_pcs]
+        min_distance = min(distances, key=lambda x: x[1])[1]
+        closest_pcs = [s for s, d in distances if d == min_distance]
+        closest_pc = random.choice(closest_pcs)
+        snapped_note = closest_pc + (octave * 12)
+        possible_notes = [snapped_note - 12, snapped_note, snapped_note + 12]
+        return min(possible_notes, key=lambda n: abs(n - note))
 
     def adjust_note_to_range(
         self, 
@@ -110,7 +131,9 @@ class MusicGenerator:
             ]
             return random.choices(['2n', '4n', '8n', '16n', '32n'], weights=weights)[0]
 
-    def generate_next_notes(self, client_id: str, voice_id: int, params: Dict, duration: int = 1) -> List[Dict]:
+    def generate_next_notes(
+        self, client_id: str, voice_id: int, params: Dict, global_params: Dict, duration: int = 1
+    ) -> List[Dict]:
         """12音技法に基づいて次の音符を生成"""
         state = self.get_voice_state(client_id, voice_id)
         if not state:
@@ -118,16 +141,21 @@ class MusicGenerator:
             state = self.get_voice_state(client_id, voice_id)
 
         notes_data = []
+        dissonance_level = global_params["dissonanceLevel"]
+        tempo_factor = global_params.get("tempoFactor", 1.0)
+        volume_factor = global_params.get("volumeFactor", 1.0)
+        _, scale_pcs = ScaleManager.get_scale_for_dissonance_weighted(dissonance_level)
 
         for _ in range(duration):
             # duration, ベロシティとテンポの処理
             adjusted_duration = self.get_note_duration(params["duration"])
             velocity_variation = params["velocityVariation"] / 100
             variation_range = velocity_variation * 0.5
-            adjusted_velocity = params["velocity"] + (random.random() * variation_range * 2 - variation_range)
+            adjusted_velocity = (params["velocity"] * volume_factor) + (random.random() * variation_range * 2 - variation_range)
             adjusted_velocity = max(0, min(1, adjusted_velocity))
             
-            adjusted_tempo = params["tempo"] + (params["tempo"] * 0.1 * (random.random() * 2 - 1))
+            adjusted_tempo = (params["tempo"] * tempo_factor) + (params["tempo"] * 0.1 * (random.random() * 2 - 1))
+            print(f"adjusted_tempo: {adjusted_tempo}")
 
             # 休符の処理
             if params["rest"] and (random.random() < params["restProbability"] / 100):
@@ -159,8 +187,9 @@ class MusicGenerator:
                 state.melody_row = []
                 
                 for i, note in enumerate(selected_row):
+                    snapped_note = self.snap_note(note, scale_pcs)
                     adjusted_note = self.adjust_note_to_range(
-                        note,
+                        snapped_note,
                         params["rangeLower"],
                         params["rangeUpper"]
                     )

@@ -10,6 +10,25 @@
     <h1>ピアノ音楽生成アプリ</h1>
 
     <div class="control-group">
+        <h3>全体設定</h3>
+        <div class="control-item">
+            <label>不協和レベル:</label>
+            <input type="range" id="dissonanceLevel" min="0" max="1" step="0.01" value="1.0">
+            <span id="dissonanceLevelValue">1.0</span>
+        </div>
+        <div class="control-item">
+            <label>テンポファクター:</label>
+            <input type="range" id="tempoFactor" min="0.5" max="2.0" step="0.1" value="1.0">
+            <span id="tempoFactorValue">1.0</span>
+        </div>
+        <div class="control-item">
+            <label>音量ファクター:</label>
+            <input type="range" id="volumeFactor" min="0.5" max="2.0" step="0.1" value="1.0">
+            <span id="volumeFactorValue">1.0</span>
+        </div>
+    </div>
+
+    <div class="control-group">
         <h3>声部の管理</h3>
         <div id="voices-container">
             <!-- 声部のコントロールがここに動的に追加される -->
@@ -23,6 +42,23 @@
     <button id="stopButton">停止</button>
 
     <script>
+        // グローバルパラメータの設定
+        const dissonanceLevel = document.getElementById('dissonanceLevel');
+        const dissonanceLevelValue = document.getElementById('dissonanceLevelValue');
+        dissonanceLevel.addEventListener('input', function(e) {
+            dissonanceLevelValue.textContent = e.target.value;
+        });
+        const tempoFactor = document.getElementById('tempoFactor');
+        const tempoFactorValue = document.getElementById('tempoFactorValue');
+        tempoFactor.addEventListener('input', function(e) {
+            tempoFactorValue.textContent = e.target.value;
+        });
+        const volumeFactor = document.getElementById('volumeFactor');
+        const volumeFactorValue = document.getElementById('volumeFactorValue');
+        volumeFactor.addEventListener('input', function(e) {
+            volumeFactorValue.textContent = e.target.value;
+        });
+        
         class Voice {
             constructor(id) {
                 this.id = id;
@@ -141,7 +177,7 @@
                 });
 
                 // 次の音を鳴らす時間を計算
-                const duration = getDurationInMilliseconds(noteData.duration, this.params.tempo);
+                const duration = getDurationInMilliseconds(noteData.duration, this.params.tempo*tempoFactor.value);
                 this.nextNoteTime = Tone.now() + (duration / 1000);
 
                 // 次の音符を再帰的にスケジュール
@@ -157,7 +193,12 @@
                         type: 'generate_notes',
                         voiceId: this.id,
                         params: this.params,
-                        duration: notesToFetch
+                        duration: notesToFetch,
+                        globalParams: {
+                            dissonanceLevel: parseFloat(dissonanceLevel.value),
+                            tempoFactor: parseFloat(tempoFactor.value),
+                            volumeFactor: parseFloat(volumeFactor.value)
+                        }
                     }));
                 }
                 // 次の音符を再帰的にスケジュール
