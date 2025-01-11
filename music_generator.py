@@ -155,7 +155,6 @@ class MusicGenerator:
             adjusted_velocity = max(0, min(1, adjusted_velocity))
             
             adjusted_tempo = (params["tempo"] * tempo_factor) + (params["tempo"] * 0.1 * (random.random() * 2 - 1))
-            print(f"adjusted_tempo: {adjusted_tempo}")
 
             # 休符の処理
             if params["rest"] and (random.random() < params["restProbability"] / 100):
