@@ -51,27 +51,28 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import * as Tone from 'tone'
 import { useWebSocketStore } from './stores/websocket'
+import { useTonePlayer } from './composables/useTonePlayer'
 import GlobalControls from './components/GlobalControls.vue'
 import VoicesContainer from './components/VoicesContainer.vue'
 
 const webSocketStore = useWebSocketStore()
 const isConnected = computed(() => webSocketStore.isConnected)
+const tonePlayer = useTonePlayer()
 
 onMounted(async () => {
   console.log('App mounted, initializing WebSocket connection')
   try {
     await webSocketStore.connectWebSocket()
     console.log('WebSocket connection initialized')
+    await tonePlayer.waitForLoad()
   } catch (error) {
-    console.error('Failed to initialize WebSocket connection:', error)
+    console.error('Failed to initialize:', error)
   }
 })
 
 const voicesContainer = ref(null)
 const isPlaying = ref(false)
-const synth = new Tone.PolySynth().toDestination()
 const globalSettings = ref({
   dissonanceLevel: 1.0,
   tempoFactor: 1.0,
@@ -89,20 +90,14 @@ async function togglePlay() {
     voicesContainer.value.stopAllVoices()
     isPlaying.value = false
   } else {
-    await Tone.start()
+    await tonePlayer.startAudioContext()
     voicesContainer.value.startAllVoices()
     isPlaying.value = true
   }
 }
 
 function handlePlayNote(noteData) {
-  const { noteName, duration, velocity, time } = noteData
-  synth.triggerAttackRelease(
-    noteName,
-    duration,
-    time,
-    velocity
-  )
+  tonePlayer.playNote(noteData)
 }
 
 // Request note generation from backend via WebSocket
