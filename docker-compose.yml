@@ -7,6 +7,6 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - .:/app
+      - ./app:/app
     environment:
       - WATCHFILES_FORCE_POLLING=true

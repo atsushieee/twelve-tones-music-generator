@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Dict, Union, Optional
 import random
-from scale_manager import ScaleManager
+from music_generator.scale_manager import ScaleManager
 
 
 @dataclass
