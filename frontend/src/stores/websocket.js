@@ -1,5 +1,11 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
+
+// get the port from the environment variable
+const WS_PORT = import.meta.env.VITE_WS_PORT || 8000
+const WS_URL = `ws://localhost:${WS_PORT}/ws`
+console.log('Current Environment Mode:', import.meta.env.MODE)
+console.log('WebSocket Port:', WS_PORT)
 
 export const useWebSocketStore = defineStore('websocket', () => {
   const ws = ref(null)
@@ -9,7 +15,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
   const connectWebSocket = () => {
     return new Promise((resolve, reject) => {
-      const wsUrl = `ws://localhost:8000/ws/${clientId.value}`
+      const wsUrl = `${WS_URL}/${clientId.value}`
+      console.log('Connecting to WebSocket:', wsUrl)
       
       try {
         if (ws.value) {

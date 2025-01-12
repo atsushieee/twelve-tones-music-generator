@@ -116,7 +116,6 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         if client_id in client_states:
             del client_states[client_id]
 
-# CORSミドルウェアを追加
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -125,9 +124,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 静的ファイルのマウント
 try:
-    app.mount("/assets", StaticFiles(directory="assets"), name="assets")
-    app.mount("/", StaticFiles(directory=".", html=True), name="static")
+    app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="static")
 except Exception as e:
     print(f"Error mounting static files: {e}")
