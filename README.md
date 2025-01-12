@@ -1,5 +1,5 @@
 ---
-title: Music Generator Test
+title: Twelve Tones Music Generator
 emoji: 🐢
 colorFrom: pink
 colorTo: green

@@ -3,7 +3,11 @@ import { ref } from 'vue'
 
 // get the port from the environment variable
 const WS_PORT = import.meta.env.VITE_WS_PORT || 8000
-const WS_URL = `ws://localhost:${WS_PORT}/ws`
+const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss' : 'ws'
+const WS_URL = WS_PROTOCOL === 'wss' 
+  ? `${WS_PROTOCOL}://${window.location.host}/ws`
+  : `${WS_PROTOCOL}://${window.location.hostname}:${WS_PORT}/ws`
+
 console.log('Current Environment Mode:', import.meta.env.MODE)
 console.log('WebSocket Port:', WS_PORT)
 
