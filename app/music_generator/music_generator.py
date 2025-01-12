@@ -18,11 +18,16 @@ class MusicGenerator:
         self.client_states: Dict[str, Dict[int, VoiceState]] = {}
     
     def init_voice_state(self, client_id: str, voice_id: int) -> None:
-        """声部の状態を初期化"""
+        """Initialize voice state.
+        
+        Args:
+            client_id (str): Client ID
+            voice_id (int): Voice ID
+        """
         if client_id not in self.client_states:
             self.client_states[client_id] = {}
             
-        # 新しい12音列を生成
+        # Generate new 12-note sequence
         base_row = self.generate_new_sequence()
         row_retro = self.retrograde(base_row)
         row_inverted = self.inversion(base_row)
@@ -38,32 +43,54 @@ class MusicGenerator:
         )
 
     def get_voice_state(self, client_id: str, voice_id: int) -> Optional[VoiceState]:
-        """声部の状態を取得"""
+        """Get voice state.
+        
+        Args:
+            client_id (str): Client ID
+            voice_id (int): Voice ID
+        """
         return self.client_states.get(client_id, {}).get(voice_id)
 
     def generate_new_sequence(self) -> List[int]:
-        """12音の音列を生成"""
+        """Generate new 12-note sequence.
+        
+        Returns:
+            List[int]: 12-note sequence
+        """
         notes = list(range(60, 72))  # 60-71 (C4-B4)
         random.shuffle(notes)
         return notes
 
     def retrograde(self, row: List[int]) -> List[int]:
-        """音列の逆行形を生成"""
+        """Generate retrograde sequence.
+        
+        Args:
+            row (List[int]): 12-note sequence
+        Returns:
+            List[int]: Retrograde sequence
+        """
         return row[::-1]
 
     def inversion(self, row: List[int]) -> List[int]:
-        """音列の転回形を生成"""
+        """Generate inversion sequence.
+        
+        Args:
+            row (List[int]): 12-note sequence
+        Returns:
+            List[int]: Inversion sequence
+        """
         base_note = row[0]
         inverted = [base_note - (note - base_note) for note in row]
         return [(((note - 60 + 12) % 12) + 60) for note in inverted]
     
-    def snap_note(
-        self, 
-        note: int, 
-        scale_pcs: List[int]
-    ) -> int:
-        """
-        音符をスケールにスナップする。
+    def snap_note(self, note: int, scale_pcs: List[int]) -> int:
+        """Snap note to scale.
+        
+        Args:
+            note (int): Note
+            scale_pcs (List[int]): Scale PC
+        Returns:
+            int: Snapped note
         """
         pc = note % 12
         octave = note // 12
@@ -78,12 +105,17 @@ class MusicGenerator:
         return min(possible_notes, key=lambda n: abs(n - note))
 
     def adjust_note_to_range(
-        self, 
-        note: int, 
-        lower_note: int, 
-        upper_note: int
+            self, note: int, lower_note: int, upper_note: int
     ) -> Union[int, None]:
-        """音符を指定された音域に調整"""
+        """Adjust note to range.
+        
+        Args:
+            note (int): Note
+            lower_note (int): Lower note
+            upper_note (int): Upper note
+        Returns:
+            Union[int, None]: Adjusted note or None
+        """
         pitch_class = note % 12
         min_octave = lower_note // 12
         max_octave = upper_note // 12
@@ -101,7 +133,13 @@ class MusicGenerator:
         return pitch_class + (selected_octave * 12)
 
     def get_note_duration(self, complexity: int) -> str:
-        """複雑度に基づいて音符の長さを決定"""
+        """Determine note duration based on complexity.
+        
+        Args:
+            complexity (int): Complexity
+        Returns:
+            str: Note duration
+        """
         if complexity <= 0:
             return '2n'
         elif complexity <= 25:
@@ -132,9 +170,24 @@ class MusicGenerator:
             return random.choices(['2n', '4n', '8n', '16n', '32n'], weights=weights)[0]
 
     def generate_next_notes(
-        self, client_id: str, voice_id: int, params: Dict, global_params: Dict, duration: int = 1
+        self, 
+        client_id: str, 
+        voice_id: int, 
+        params: Dict, 
+        global_params: Dict, 
+        duration: int = 1
     ) -> List[Dict]:
-        """12音技法に基づいて次の音符を生成"""
+        """Generate next notes based on 12-note technique.
+        
+        Args:
+            client_id (str): Client ID
+            voice_id (int): Voice ID
+            params (Dict): Parameters
+            global_params (Dict): Global parameters
+            duration (int): Duration
+        Returns:
+            List[Dict]: Next notes
+        """
         state = self.get_voice_state(client_id, voice_id)
         if not state:
             self.init_voice_state(client_id, voice_id)
@@ -147,7 +200,7 @@ class MusicGenerator:
         _, scale_pcs = ScaleManager.get_scale_for_dissonance_weighted(dissonance_level)
 
         for _ in range(duration):
-            # duration, ベロシティとテンポの処理
+            # Process duration, velocity, and tempo
             adjusted_duration = self.get_note_duration(params["duration"])
             velocity_variation = params["velocityVariation"] / 100
             variation_range = velocity_variation * 0.5
@@ -156,7 +209,7 @@ class MusicGenerator:
             
             adjusted_tempo = (params["tempo"] * tempo_factor) + (params["tempo"] * 0.1 * (random.random() * 2 - 1))
 
-            # 休符の処理
+            # Process rest
             if params["rest"] and (random.random() < params["restProbability"] / 100):
                 notes_data.append({
                     "notes": [],
@@ -166,16 +219,16 @@ class MusicGenerator:
                 })
                 continue
 
-            # 現在のmelody_rowを使い切ったか、まだ生成していない場合
+            # If melody_row is used up or not yet generated
             if not state.melody_row or state.sequence_index >= len(state.melody_row):
-                # 25%の確率で新しい12音列を生成
+                # Generate new 12-note sequence with 25% probability
                 if not state.melody_row or random.random() < 0.25:
                     state.base_row = self.generate_new_sequence()
                     state.row_retro = self.retrograde(state.base_row)
                     state.row_inverted = self.inversion(state.base_row)
                     state.row_retro_inverted = self.retrograde(state.row_inverted)
 
-                # 4つの行から1つをランダムに選択
+                # Select one of the four rows randomly
                 selected_row = random.choice([
                     state.base_row,
                     state.row_retro,
@@ -197,7 +250,7 @@ class MusicGenerator:
 
                 state.sequence_index = 0
 
-            # 和音の生成
+            # Generate chord
             chord_prob = params["chordProbability"]
             num_notes = 1
             
@@ -215,11 +268,11 @@ class MusicGenerator:
                     elif random_value < three_note_prob + remaining_prob/2:
                         num_notes = 2
 
-            # 残りの音符数を考慮
+            # Consider remaining notes
             remaining_notes = len(state.melody_row) - state.sequence_index
             num_notes = min(num_notes, remaining_notes)
 
-            # 音符の取得
+            # Get notes
             notes = []
             for i in range(num_notes):
                 notes.append(state.melody_row[state.sequence_index + i])

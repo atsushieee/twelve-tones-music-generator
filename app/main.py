@@ -9,10 +9,9 @@ from music_generator import MusicGenerator
 app = FastAPI()
 
 music_generator = MusicGenerator()
-# 各クライアントの状態を保持する辞書
 client_states: Dict[str, Dict] = {}
 
-# WebSocket接続を管理するクラス
+# Manager for WebSocket connections
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
@@ -41,12 +40,12 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
     await manager.connect(websocket, client_id)
     try:
         while True:
-            # クライアントからのメッセージを待機
+            # Wait for messages from clients
             data = await websocket.receive_json()
             
-            # メッセージタイプに応じた処理
+            # Process messages based on type
             if data["type"] == "init":
-                # クライアントの初期状態を設定
+                # Set initial state for client
                 client_states[client_id] = {
                     "voice_states": {}
                 }
@@ -60,7 +59,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 duration = data["duration"]
                 global_params = data["globalParams"]
                 
-                # 音符生成
+                # Generate notes
                 note_data = music_generator.generate_next_notes(
                     client_id, voice_id, params, global_params, duration
                 )
@@ -70,7 +69,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     "noteData": note_data
                 }
             elif data["type"] == "voice_added":
-                # 新しい声部の初期化
+                # Initialize new voice
                 voice_id = data["voiceId"]
                 music_generator.init_voice_state(client_id, voice_id)
                 response = {
@@ -79,7 +78,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     "status": "initialized"
                 }                
             elif data["type"] == "voice_removed":
-                # 声部の状態を削除
+                # Remove voice state
                 voice_id = data["voiceId"]
                 if client_id in music_generator.client_states:
                     if voice_id in music_generator.client_states[client_id]:
@@ -90,7 +89,7 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     "status": "removed"
                 } 
             elif data["type"] == "voice_updated":
-                # 声部のIDを更新
+                # Update voice ID
                 old_id = data["oldId"]
                 new_id = data["newId"]
                 if client_id in music_generator.client_states:
