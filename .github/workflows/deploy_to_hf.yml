@@ -32,6 +32,11 @@ jobs:
     - name: Remove gitignore
       run: rm -rf .gitignore
 
+    - name: Prepend YAML header to README
+      run: |
+        cat hf_space_metadata.yml README.md > new_readme.md
+        mv new_readme.md README.md
+
     - name: Install Hugging Face CLI
       run: |
         python -m pip install --upgrade pip
