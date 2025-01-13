@@ -16,7 +16,7 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '16'
+        node-version: '18'
 
     - name: Install frontend dependencies
       working-directory: frontend
@@ -25,6 +25,9 @@ jobs:
     - name: Build frontend
       working-directory: frontend
       run: npm run build
+
+    - name: Remove node_modules
+      run: rm -rf frontend/node_modules
 
     - name: Install Hugging Face CLI
       run: |
