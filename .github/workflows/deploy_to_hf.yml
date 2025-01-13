@@ -29,6 +29,9 @@ jobs:
     - name: Remove node_modules
       run: rm -rf frontend/node_modules
 
+    - name: Remove gitignore
+      run: rm -rf .gitignore
+
     - name: Install Hugging Face CLI
       run: |
         python -m pip install --upgrade pip
