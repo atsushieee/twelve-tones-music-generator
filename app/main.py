@@ -1,10 +1,11 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from music_generator import MusicGenerator
+from pydantic import BaseModel, Field
 
 app = FastAPI()
 
@@ -127,3 +128,36 @@ try:
     app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="static")
 except Exception as e:
     print(f"Error mounting static files: {e}")
+
+
+class VolumeFactorUpdate(BaseModel):
+    value: float = Field(..., ge=0.5, le=2.0)
+    client_id: Optional[str] = Field(None, alias="clientId")
+
+@app.post("/api/volume-factor")
+async def update_volume_factor(volume_update: VolumeFactorUpdate):
+    print(f"Updating volume factor to {volume_update.value}")
+
+    if volume_update.client_id:
+        # send to specific client
+        if volume_update.client_id in manager.active_connections:
+            await manager.send_note_data(volume_update.client_id, {
+                "type": "volume_factor_updated",
+                "value": volume_update.value
+            })
+        else:
+            return {"status": "error", "message": "Client not found"}
+    else:
+        # send to all clients
+        for client_id in manager.active_connections:
+            print(client_id)
+            await manager.send_note_data(client_id, {
+                "type": "volume_factor_updated",
+                "value": volume_update.value
+            })
+    
+    return {
+        "status": "success", 
+        "volumeFactor": volume_update.value,
+        "target": volume_update.client_id or "all"
+    }

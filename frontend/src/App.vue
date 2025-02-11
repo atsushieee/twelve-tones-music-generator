@@ -31,6 +31,7 @@
 
             <GlobalControls
               :onSettingsChange="handleSettingsChange"
+              :volumeFactorValue="globalSettings.volumeFactor"
               class="mb-4"
             />
 
@@ -50,7 +51,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useWebSocketStore } from './stores/websocket'
 import { useTonePlayer } from './composables/useTonePlayer'
 import GlobalControls from './components/GlobalControls.vue'
@@ -77,6 +78,15 @@ const globalSettings = ref({
   dissonanceLevel: 1.0,
   tempoFactor: 1.0,
   volumeFactor: 1.0
+})
+
+watch(() => webSocketStore.globalVolumeFactor, (newValue) => {
+  // Using spread operator ensures reactive state update in Vue
+  // Replace entire object instead of mutating properties directly for proper reactivity
+  globalSettings.value = {
+    ...globalSettings.value,
+    volumeFactor: newValue
+  }
 })
 
 const handleSettingsChange = (settings) => {

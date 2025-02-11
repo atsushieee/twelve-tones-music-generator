@@ -50,12 +50,20 @@ const props = defineProps({
   onSettingsChange: {
     type: Function,
     required: true
+  },
+  volumeFactorValue: {
+    type: Number,
+    default: 1.0
   }
 })
 
 const dissonanceLevel = ref(1.0)
 const tempoFactor = ref(1.0)
-const volumeFactor = ref(1.0)
+const volumeFactor = ref(props.volumeFactorValue)
+
+watch(() => props.volumeFactorValue, (newValue) => {
+  volumeFactor.value = newValue
+})
 
 watch([dissonanceLevel, tempoFactor, volumeFactor], () => {
   props.onSettingsChange({
