@@ -17,6 +17,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
   const isConnected = ref(false)
   const voiceQueues = ref({})
   const globalVolumeFactor = ref(1.0)
+  const globalTempoFactor = ref(1.0)
 
   const connectWebSocket = () => {
     return new Promise((resolve, reject) => {
@@ -104,6 +105,9 @@ export const useWebSocketStore = defineStore('websocket', () => {
       case 'volume_factor_updated':
         globalVolumeFactor.value = data.value
         break
+      case 'tempo_factor_updated':
+        globalTempoFactor.value = data.value
+        break
       case 'error':
         console.error('Server error:', data.message)
         break
@@ -141,6 +145,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
     clearVoiceQueue,
     connectWebSocket,
     updateVoiceQueue,
-    globalVolumeFactor
+    globalVolumeFactor,
+    globalTempoFactor
   }
 }) 

@@ -54,15 +54,23 @@ const props = defineProps({
   volumeFactorValue: {
     type: Number,
     default: 1.0
+  },
+  tempoFactorValue: {
+    type: Number,
+    default: 1.0
   }
 })
 
 const dissonanceLevel = ref(1.0)
-const tempoFactor = ref(1.0)
+const tempoFactor = ref(props.tempoFactorValue)
 const volumeFactor = ref(props.volumeFactorValue)
 
 watch(() => props.volumeFactorValue, (newValue) => {
   volumeFactor.value = newValue
+})
+
+watch(() => props.tempoFactorValue, (newValue) => {
+  tempoFactor.value = newValue
 })
 
 watch([dissonanceLevel, tempoFactor, volumeFactor], () => {

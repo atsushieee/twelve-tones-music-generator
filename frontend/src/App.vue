@@ -32,6 +32,7 @@
             <GlobalControls
               :onSettingsChange="handleSettingsChange"
               :volumeFactorValue="globalSettings.volumeFactor"
+              :tempoFactorValue="globalSettings.tempoFactor"
               class="mb-4"
             />
 
@@ -86,6 +87,13 @@ watch(() => webSocketStore.globalVolumeFactor, (newValue) => {
   globalSettings.value = {
     ...globalSettings.value,
     volumeFactor: newValue
+  }
+})
+
+watch(() => webSocketStore.globalTempoFactor, (newValue) => {
+  globalSettings.value = {
+    ...globalSettings.value,
+    tempoFactor: newValue
   }
 })
 
