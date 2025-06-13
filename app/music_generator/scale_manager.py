@@ -3,9 +3,12 @@ import random
 class ScaleManager:
     SCALE_BANK = {
         (0.0, 0.1): [
+            ("C5", [0, 7]),          # Only Root and Perfect 5th
+        ],
+        (0.1, 0.2): [
             ("Cmaj", [0, 4, 7]),          # Start with the simplest form
         ],
-        (0.1, 0.3): [
+        (0.2, 0.3): [
             ("Cmaj7", [0, 4, 7, 11]),     # Add color with major 7th
             ("Cadd9", [0, 4, 7, 14])      # Add 9th for more spread
         ],

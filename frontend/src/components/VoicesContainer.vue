@@ -33,13 +33,53 @@
           block
           color="primary"
           class="mt-4"
-          @click="addVoice"
+          @click="showRangeDialog"
         >
           Add Voice
           <v-icon icon="mdi-plus" class="ml-2" />
         </v-btn>
       </v-card-text>
     </v-card>
+
+    <!-- 音域選択モーダル -->
+    <v-dialog v-model="rangeDialogVisible" max-width="400">
+      <v-card>
+        <v-card-title class="text-h6">
+          声部の音域を選択
+        </v-card-title>
+        <v-card-text>
+          <v-radio-group v-model="selectedRange">
+            <v-radio
+              label="高音域 (E5〜A6)"
+              value="high"
+            ></v-radio>
+            <v-radio
+              label="中音域 (C4〜G5)"
+              value="middle"
+            ></v-radio>
+            <v-radio
+              label="低音域 (C3〜G4)"
+              value="low"
+            ></v-radio>
+          </v-radio-group>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn
+            color="primary"
+            @click="addVoiceWithSelectedRange"
+          >
+            追加
+          </v-btn>
+          <v-btn
+            color="grey"
+            @click="rangeDialogVisible = false"
+          >
+            キャンセル
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -50,6 +90,8 @@ import { useWebSocketStore } from '../stores/websocket'
 
 const voiceRefs = ref([])
 const nextVoiceId = ref(2) // the first voice is 1, so the next is 2
+const rangeDialogVisible = ref(false)
+const selectedRange = ref('middle') // デフォルトは中音域
 
 const props = defineProps({
   globalSettings: {
@@ -64,18 +106,25 @@ const props = defineProps({
 
 const webSocketStore = useWebSocketStore()
 
+// 音域ごとの設定
+const rangeSettings = {
+  high: { rangeLower: 76, rangeUpper: 93 },
+  middle: { rangeLower: 60, rangeUpper: 76 },
+  low: { rangeLower: 48, rangeUpper: 67 }
+}
+
 // create initial voice (ID: 1)
 const voices = ref([
   {
     id: 1,
     params: {
-      velocity: 0.5,
-      velocityVariation: 75,
+      velocity: 1.0,
+      velocityVariation: 0,
       rangeLower: 60,
-      rangeUpper: 71,
+      rangeUpper: 76,
       tempo: 240,
-      duration: 50,
-      rest: true,
+      duration: 0,
+      rest: false,
       restProbability: 25,
       chordProbability: 0,
       melodicCoherence: 0
@@ -83,20 +132,33 @@ const voices = ref([
   }
 ])
 
-function addVoice() {
+function showRangeDialog() {
+  selectedRange.value = 'middle' // 初期値
+  rangeDialogVisible.value = true
+}
+
+function addVoiceWithSelectedRange() {
+  rangeDialogVisible.value = false
+  addVoice(selectedRange.value)
+}
+
+function addVoice(rangeType = 'middle') {
   const newVoiceId = nextVoiceId.value
+  const rangeConfig = rangeSettings[rangeType]
+  
   const newVoiceParams = {
-    velocity: 0.5,
-    velocityVariation: 75,
-    rangeLower: 60,
-    rangeUpper: 71,
+    velocity: 1.0,
+    velocityVariation: 0,
+    rangeLower: rangeConfig.rangeLower,
+    rangeUpper: rangeConfig.rangeUpper,
     tempo: 240,
-    duration: 50,
-    rest: true,
+    duration: 0,
+    rest: false,
     restProbability: 25,
     chordProbability: 0,
     melodicCoherence: 0
   }
+  
   voices.value.push({
     id: newVoiceId,
     params: newVoiceParams
@@ -159,10 +221,48 @@ function handleFetchNotes(data) {
   emit('fetch-notes', data)
 }
 
+
+// 声部数と個別設定を同時に適用する関数
+function setVoiceCountWithSettings(voiceSettings) {
+  const targetCount = voiceSettings.length
+  const currentCount = voices.value.length
+  
+  // 必要に応じて声部数を調整
+  if (targetCount > currentCount) {
+    // 声部を追加
+    const voicesToAdd = targetCount - currentCount
+    for (let i = 0; i < voicesToAdd; i++) {
+      addVoice('middle') // デフォルトの音域で追加（後で設定を上書き）
+    }
+  } else if (targetCount < currentCount) {
+    // 声部を削除
+    const finalCount = Math.max(targetCount, 1)
+    const voicesToRemove = currentCount - finalCount
+    
+    for (let i = 0; i < voicesToRemove; i++) {
+      if (voices.value.length > 1) {
+        const lastVoice = voices.value[voices.value.length - 1]
+        removeVoice(lastVoice.id)
+      }
+    }
+  }
+  
+  // 各声部に個別設定を適用
+  voiceSettings.forEach((settings, index) => {
+    if (index < voices.value.length) {
+      voices.value[index].params = { ...settings }
+      console.log(`Applied settings to voice ${voices.value[index].id}:`, settings)
+    }
+  })
+  
+  console.log(`Voice count and settings applied: ${voices.value.length} voices with individual settings`)
+}
+
 const emit = defineEmits(['play-note', 'fetch-notes'])
 
 defineExpose({
   startAllVoices,
-  stopAllVoices
+  stopAllVoices,
+  setVoiceCountWithSettings
 })
-</script> 
+</script>

@@ -39,6 +39,24 @@
           />
         </v-col>
       </v-row>
+      <v-row class="mt-4">
+        <v-col cols="6">
+          <v-select
+            v-model="instrument"
+            :items="instruments"
+            label="Instrument"
+            hide-details
+          />
+        </v-col>
+        <v-col cols="6">
+          <v-switch
+            v-model="drumEnabled"
+            label="Drums"
+            color="primary"
+            hide-details
+          />
+        </v-col>
+      </v-row>
     </v-card-text>
   </v-card>
 </template>
@@ -51,6 +69,10 @@ const props = defineProps({
     type: Function,
     required: true
   },
+  dissonanceLevelValue: {
+    type: Number,
+    default: 1.0
+  },
   volumeFactorValue: {
     type: Number,
     default: 1.0
@@ -58,13 +80,26 @@ const props = defineProps({
   tempoFactorValue: {
     type: Number,
     default: 1.0
+  },
+  instrumentValue: {
+    type: String,
+    default: 'piano'
   }
 })
 
-const dissonanceLevel = ref(1.0)
+const dissonanceLevel = ref(props.dissonanceLevelValue)
 const tempoFactor = ref(props.tempoFactorValue)
 const volumeFactor = ref(props.volumeFactorValue)
+const instrument = ref(props.instrumentValue)
+const instruments = [
+  { title: 'Piano', value: 'piano' },
+  { title: 'Strings', value: 'violin' }
+]
+const drumEnabled = ref(false)
 
+watch(() => props.dissonanceLevelValue, (newValue) => {
+  dissonanceLevel.value = newValue
+})
 watch(() => props.volumeFactorValue, (newValue) => {
   volumeFactor.value = newValue
 })
@@ -73,11 +108,16 @@ watch(() => props.tempoFactorValue, (newValue) => {
   tempoFactor.value = newValue
 })
 
-watch([dissonanceLevel, tempoFactor, volumeFactor], () => {
+watch(() => props.instrumentValue, (newValue) => {
+  instrument.value = newValue
+})
+
+watch([dissonanceLevel, tempoFactor, volumeFactor, instrument], () => {
   props.onSettingsChange({
     dissonanceLevel: dissonanceLevel.value,
     tempoFactor: tempoFactor.value,
-    volumeFactor: volumeFactor.value
+    volumeFactor: volumeFactor.value,
+    instrument: instrument.value
   })
 }, { deep: true })
 </script> 

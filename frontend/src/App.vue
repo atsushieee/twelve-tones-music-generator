@@ -4,8 +4,7 @@
       <v-container>
         <v-row>
           <v-col>
-            <h1 class="text-h3 text-center mb-6">Twelve Tones Music Generator</h1>
-            
+            <h1 class="text-h3 text-center mb-6">KwAI Music Generator</h1>          
             <v-alert
               :color="isConnected ? 'success' : 'warning'"
               :icon="isConnected ? 'mdi-check-circle' : 'mdi-alert'"
@@ -13,6 +12,12 @@
             >
               Connection: {{ isConnected ? 'Connected' : 'Disconnected' }}
             </v-alert>
+
+            <PresetSelector
+              :voices-container="voicesContainer"
+              :tone-player="tonePlayer"
+              @settings-change="handleSettingsChange"
+            />
 
             <v-card class="mb-4">
               <v-card-text class="d-flex justify-center">
@@ -31,8 +36,10 @@
 
             <GlobalControls
               :onSettingsChange="handleSettingsChange"
+              :dissonanceLevelValue="globalSettings.dissonanceLevel"
               :volumeFactorValue="globalSettings.volumeFactor"
               :tempoFactorValue="globalSettings.tempoFactor"
+              :instrumentValue="globalSettings.instrument"
               class="mb-4"
             />
 
@@ -57,6 +64,7 @@ import { useWebSocketStore } from './stores/websocket'
 import { useTonePlayer } from './composables/useTonePlayer'
 import GlobalControls from './components/GlobalControls.vue'
 import VoicesContainer from './components/VoicesContainer.vue'
+import PresetSelector from './components/PresetSelector.vue'
 
 const webSocketStore = useWebSocketStore()
 const isConnected = computed(() => webSocketStore.isConnected)
@@ -78,27 +86,15 @@ const isPlaying = ref(false)
 const globalSettings = ref({
   dissonanceLevel: 1.0,
   tempoFactor: 1.0,
-  volumeFactor: 1.0
-})
-
-watch(() => webSocketStore.globalVolumeFactor, (newValue) => {
-  // Using spread operator ensures reactive state update in Vue
-  // Replace entire object instead of mutating properties directly for proper reactivity
-  globalSettings.value = {
-    ...globalSettings.value,
-    volumeFactor: newValue
-  }
-})
-
-watch(() => webSocketStore.globalTempoFactor, (newValue) => {
-  globalSettings.value = {
-    ...globalSettings.value,
-    tempoFactor: newValue
-  }
+  volumeFactor: 1.0,
+  instrument: 'piano'
 })
 
 const handleSettingsChange = (settings) => {
   globalSettings.value = settings
+  if (settings.instrument) {
+    tonePlayer.setInstrument(settings.instrument)
+  }
 }
 
 async function togglePlay() {
@@ -125,7 +121,12 @@ function handleFetchNotes(data) {
     voiceId: data.voiceId,
     params: data.params,
     duration: data.duration,
-    globalParams: globalSettings.value
+    globalParams: { 
+      dissonanceLevel: globalSettings.value.dissonanceLevel,
+      tempoFactor: globalSettings.value.tempoFactor,
+      volumeFactor: globalSettings.value.volumeFactor,
+      instrument: globalSettings.value.instrument,
+    }
   })
 }
 </script>

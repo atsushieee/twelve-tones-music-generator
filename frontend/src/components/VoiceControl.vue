@@ -164,25 +164,34 @@ const props = defineProps({
   globalSettings: {
     type: Object,
     required: true
-  }
+  },
+  params: {
+    type: Object,
+    default: () => ({
+      velocity: 1.0,
+      velocityVariation: 0,
+      rangeLower: 60,
+      rangeUpper: 76,
+      tempo: 240,
+      duration: 0,
+      rest: false,
+      restProbability: 25,
+      chordProbability: 0,
+      melodicCoherence: 0
+    })
+  },
 })
 
 const emit = defineEmits(['delete', 'update:params', 'play-note', 'fetch-notes'])
 const webSocketStore = useWebSocketStore()
 
 // each voice has its own parameters
-const params = ref({
-  velocity: 0.5,
-  velocityVariation: 75,
-  rangeLower: 60,
-  rangeUpper: 71,
-  tempo: 240,
-  duration: 50,
-  rest: true,
-  restProbability: 25,
-  chordProbability: 0,
-  melodicCoherence: 0
-})
+const params = ref({...props.params})
+
+// watch for props.params changes to update internal params
+watch(() => props.params, (newParams) => {
+  params.value = { ...newParams }
+}, { deep: true })
 
 // manage playing state
 const isActive = ref(false)
@@ -323,10 +332,7 @@ function getDurationDescription(value) {
   }
 }
 
-// watch for parameter changes and notify parent component
-watch(params, (newParams) => {
-  emit('update:params', newParams)
-}, { deep: true })
+
 
 defineExpose({
   startPlaying,
