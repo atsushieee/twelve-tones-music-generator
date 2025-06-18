@@ -1,8 +1,8 @@
 <template>
   <div>
     <v-card class="mb-4">
-      <v-card-title class="text-h6">
-        Voices Management
+      <v-card-title class="text-h6 d-flex justify-space-between align-center">
+        <span>Voices Management</span>
       </v-card-title>
       <v-card-text>
         <v-sheet class="overflow-x-auto">
@@ -33,7 +33,7 @@
           block
           color="primary"
           class="mt-4"
-          @click="showRangeDialog"
+          @click="showAddVoiceDialog"
         >
           Add Voice
           <v-icon icon="mdi-plus" class="ml-2" />
@@ -41,41 +41,106 @@
       </v-card-text>
     </v-card>
 
-    <!-- 音域選択モーダル -->
-    <v-dialog v-model="rangeDialogVisible" max-width="400">
+    <!-- Add Voice Modal -->
+    <v-dialog v-model="addVoiceDialogVisible" max-width="500">
       <v-card>
         <v-card-title class="text-h6">
-          声部の音域を選択
+          Add New Voice
         </v-card-title>
         <v-card-text>
-          <v-radio-group v-model="selectedRange">
-            <v-radio
-              label="高音域 (E5〜A6)"
-              value="high"
-            ></v-radio>
-            <v-radio
-              label="中音域 (C4〜G5)"
-              value="middle"
-            ></v-radio>
-            <v-radio
-              label="低音域 (C3〜G4)"
-              value="low"
-            ></v-radio>
-          </v-radio-group>
+          <!-- Instrument Selection Section -->
+          <div class="mb-6">
+            <v-label class="text-subtitle-2 mb-2">Select Instrument</v-label>
+            <v-radio-group v-model="selectedInstrument" column>
+              <v-radio
+                v-for="instrument in availableInstruments"
+                :key="instrument.value"
+                :label="instrument.title"
+                :value="instrument.value"
+              >
+                <template v-slot:label>
+                  <div class="d-flex align-center">
+                    <v-icon 
+                      :icon="getInstrumentConfig(instrument.value).icon"
+                      :color="getInstrumentConfig(instrument.value).color"
+                      class="mr-2"
+                    />
+                    <div>
+                      <div class="text-body-1">{{ instrument.title }}</div>
+                      <div class="text-caption text-grey-600">
+                        {{ getInstrumentConfig(instrument.value).description }}
+                      </div>
+                    </div>
+                    <v-spacer />
+                    <v-chip
+                      :color="getInstrumentConfig(instrument.value).color"
+                      variant="tonal"
+                      size="x-small"
+                      class="ml-2"
+                    >
+                      {{ getInstrumentConfig(instrument.value).category }}
+                    </v-chip>
+                  </div>
+                </template>
+              </v-radio>
+            </v-radio-group>
+          </div>
+
+          <v-divider class="my-4" />
+
+          <!-- Range Selection Section -->
+          <div>
+            <v-label class="text-subtitle-2 mb-2">Select Range</v-label>
+            <v-radio-group v-model="selectedRange" column>
+              <v-radio
+                label="High Range (E5〜A6)"
+                value="high"
+              >
+                <template v-slot:label>
+                  <div>
+                    <div class="text-body-1">High Range</div>
+                    <div class="text-caption text-grey-600">E5〜A6 (Soprano・Tenor Upper)</div>
+                  </div>
+                </template>
+              </v-radio>
+              <v-radio
+                label="Middle Range (C4〜G5)"
+                value="middle"
+              >
+                <template v-slot:label>
+                  <div>
+                    <div class="text-body-1">Middle Range</div>
+                    <div class="text-caption text-grey-600">C4〜G5 (Alto・Tenor)</div>
+                  </div>
+                </template>
+              </v-radio>
+              <v-radio
+                label="Low Range (C3〜G4)"
+                value="low"
+              >
+                <template v-slot:label>
+                  <div>
+                    <div class="text-body-1">Low Range</div>
+                    <div class="text-caption text-grey-600">C3〜G4 (Bass・Baritone)</div>
+                  </div>
+                </template>
+              </v-radio>
+            </v-radio-group>
+          </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn
             color="primary"
-            @click="addVoiceWithSelectedRange"
+            @click="addVoiceWithSettings"
           >
-            追加
+            Add
           </v-btn>
           <v-btn
             color="grey"
-            @click="rangeDialogVisible = false"
+            @click="addVoiceDialogVisible = false"
           >
-            キャンセル
+            Cancel
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -87,11 +152,18 @@
 import { ref, nextTick } from 'vue'
 import VoiceControl from './VoiceControl.vue'
 import { useWebSocketStore } from '../stores/websocket'
+import { useInstruments } from '../composables/useInstruments'
+
+const { getAvailableInstruments, getInstrumentConfig } = useInstruments()
 
 const voiceRefs = ref([])
 const nextVoiceId = ref(2) // the first voice is 1, so the next is 2
-const rangeDialogVisible = ref(false)
-const selectedRange = ref('middle') // デフォルトは中音域
+const addVoiceDialogVisible = ref(false)
+const selectedRange = ref('middle') // default is middle range
+const selectedInstrument = ref('piano') // default is piano
+
+// Get available instruments list
+const availableInstruments = getAvailableInstruments()
 
 const props = defineProps({
   globalSettings: {
@@ -106,7 +178,7 @@ const props = defineProps({
 
 const webSocketStore = useWebSocketStore()
 
-// 音域ごとの設定
+// Range settings
 const rangeSettings = {
   high: { rangeLower: 76, rangeUpper: 93 },
   middle: { rangeLower: 60, rangeUpper: 76 },
@@ -127,22 +199,24 @@ const voices = ref([
       rest: false,
       restProbability: 25,
       chordProbability: 0,
-      melodicCoherence: 0
+      melodicCoherence: 0,
+      instrument: 'piano'
     }
   }
 ])
 
-function showRangeDialog() {
-  selectedRange.value = 'middle' // 初期値
-  rangeDialogVisible.value = true
+function showAddVoiceDialog() {
+  selectedRange.value = 'middle' // initial value
+  selectedInstrument.value = 'piano' // initial value
+  addVoiceDialogVisible.value = true
 }
 
-function addVoiceWithSelectedRange() {
-  rangeDialogVisible.value = false
-  addVoice(selectedRange.value)
+function addVoiceWithSettings() {
+  addVoiceDialogVisible.value = false
+  addVoice(selectedRange.value, selectedInstrument.value)
 }
 
-function addVoice(rangeType = 'middle') {
+function addVoice(rangeType = 'middle', instrumentType = 'piano') {
   const newVoiceId = nextVoiceId.value
   const rangeConfig = rangeSettings[rangeType]
   
@@ -156,7 +230,8 @@ function addVoice(rangeType = 'middle') {
     rest: false,
     restProbability: 25,
     chordProbability: 0,
-    melodicCoherence: 0
+    melodicCoherence: 0,
+    instrument: instrumentType  // set selected instrument
   }
   
   voices.value.push({
@@ -179,6 +254,16 @@ function addVoice(rangeType = 'middle') {
       newVoiceRef.startPlaying()
     }
   })
+}
+
+// Get range description
+function getRangeDescription(range) {
+  const descriptions = {
+    high: 'High Range (E5〜A6)',
+    middle: 'Middle Range (C4〜G5)',
+    low: 'Low Range (C3〜G4)'
+  }
+  return descriptions[range] || descriptions.middle
 }
 
 // remove voice
@@ -221,21 +306,21 @@ function handleFetchNotes(data) {
   emit('fetch-notes', data)
 }
 
-
-// 声部数と個別設定を同時に適用する関数
+// Function to set voice count and individual settings simultaneously
 function setVoiceCountWithSettings(voiceSettings) {
   const targetCount = voiceSettings.length
   const currentCount = voices.value.length
   
-  // 必要に応じて声部数を調整
+  // Adjust voice count as needed
   if (targetCount > currentCount) {
-    // 声部を追加
+    // Add voices
     const voicesToAdd = targetCount - currentCount
     for (let i = 0; i < voicesToAdd; i++) {
-      addVoice('middle') // デフォルトの音域で追加（後で設定を上書き）
+      // Add with default settings (settings will be overwritten later)
+      addVoice('middle', 'piano')
     }
   } else if (targetCount < currentCount) {
-    // 声部を削除
+    // Remove voices
     const finalCount = Math.max(targetCount, 1)
     const voicesToRemove = currentCount - finalCount
     
@@ -247,7 +332,7 @@ function setVoiceCountWithSettings(voiceSettings) {
     }
   }
   
-  // 各声部に個別設定を適用
+  // Apply individual settings to each voice
   voiceSettings.forEach((settings, index) => {
     if (index < voices.value.length) {
       voices.value[index].params = { ...settings }

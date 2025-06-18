@@ -65,13 +65,17 @@ export function useTonePlayer() {
     console.log('Samples ready')
   }
 
-  const playNote = ({ noteName, duration, velocity, time }) => {
+  // 楽器を指定して演奏する新しいplayNote関数
+  const playNote = ({ noteName, duration, velocity, time, instrument }) => {
     if (!isReady.value) {
       console.warn('Tone player not ready')
       return
     }
     
-    if (currentInstrument.value === 'violin') {
+    // instrumentパラメータが指定されている場合はそれを使用、なければcurrentInstrumentを使用
+    const targetInstrument = instrument || currentInstrument.value
+    
+    if (targetInstrument === 'violin') {
       violinSampler.triggerAttackRelease(
         noteName,
         duration,

@@ -1,7 +1,26 @@
 <template>
-  <v-card class="mb-4">
-    <v-card-title class="d-flex justify-space-between align-center">
-      <span>Voice {{ voiceId }}</span>
+  <v-card 
+    class="mb-4"
+    :style="{ borderLeft: `4px solid ${instrumentConfig.color}` }"
+  >
+    <v-card-title 
+      class="d-flex justify-space-between align-center"
+      :style="{ backgroundColor: instrumentConfig.bgColor }"
+    >
+      <div class="d-flex align-center">
+        <v-icon 
+          :icon="instrumentConfig.icon" 
+          :color="instrumentConfig.color"
+          class="mr-2"
+          size="24"
+        />
+        <div>
+          <span class="text-h6">Voice {{ voiceId }}</span>
+          <div class="text-caption text-grey-600">
+            {{ instrumentConfig.displayName }}
+          </div>
+        </div>
+      </div>
       <v-btn
         icon="mdi-close"
         variant="text"
@@ -12,6 +31,59 @@
     </v-card-title>
 
     <v-card-text>
+      <div class="my-4">
+        <v-row>
+          <v-col cols="8">
+            <v-select
+              v-model="params.instrument"
+              :items="availableInstruments"
+              label="Instrument"
+              hide-details
+              variant="outlined"
+              density="compact"
+            >
+              <template v-slot:selection="{ item }">
+                <v-chip
+                  :color="getInstrumentInfo(item.value).color"
+                  variant="tonal"
+                  size="small"
+                >
+                  <v-icon 
+                    :icon="getInstrumentInfo(item.value).icon" 
+                    start 
+                    size="16"
+                  />
+                  {{ item.title }}
+                </v-chip>
+              </template>
+              <template v-slot:item="{ props, item }">
+                <v-list-item v-bind="props">
+                  <template v-slot:prepend>
+                    <v-icon 
+                      :icon="getInstrumentInfo(item.value).icon"
+                      :color="getInstrumentInfo(item.value).color"
+                    />
+                  </template>
+                  <v-list-item-subtitle>
+                    {{ getInstrumentInfo(item.value).description }}
+                  </v-list-item-subtitle>
+                </v-list-item>
+              </template>
+            </v-select>
+          </v-col>
+          <v-col cols="4">
+            <v-chip
+              :color="instrumentConfig.color"
+              variant="flat"
+              class="ma-1"
+              size="small"
+            >
+              {{ instrumentConfig.category }}
+            </v-chip>
+          </v-col>
+        </v-row>
+      </div>
+
       <div class="my-4">
         <v-slider
           v-model="params.velocity"
@@ -148,9 +220,12 @@
 </template>
 
 <script setup>
-import { mergeProps, ref, watch } from 'vue'
+import { mergeProps, ref, watch, computed } from 'vue'
 import * as Tone from 'tone'
 import { useWebSocketStore } from '../stores/websocket'
+import { useInstruments } from '../composables/useInstruments'
+
+const { getAvailableInstruments, getInstrumentInfo, getInstrumentConfig } = useInstruments()
 
 const props = defineProps({
   voiceId: {
@@ -177,7 +252,8 @@ const props = defineProps({
       rest: false,
       restProbability: 25,
       chordProbability: 0,
-      melodicCoherence: 0
+      melodicCoherence: 0,
+      instrument: 'piano'
     })
   },
 })
@@ -197,6 +273,14 @@ watch(() => props.params, (newParams) => {
 const isActive = ref(false)
 const nextNoteTime = ref(null)
 const schedulerTimer = ref(null)
+
+// 利用可能な楽器リストを取得
+const availableInstruments = getAvailableInstruments()
+
+// 現在選択されている楽器の設定情報
+const instrumentConfig = computed(() => {
+  return getInstrumentConfig(params.value.instrument)
+})
 
 function startPlaying() {
   isActive.value = true
@@ -237,7 +321,8 @@ function scheduleNextNote() {
         noteName,
         duration: noteData.duration,
         velocity: adjustedVelocity,
-        time: nextNoteTime.value || now
+        time: nextNoteTime.value || now,
+        instrument: params.value.instrument
       })
     })
   }
@@ -331,8 +416,6 @@ function getDurationDescription(value) {
     return "half, quarter, eighth, sixteenth or thirty-second note"
   }
 }
-
-
 
 defineExpose({
   startPlaying,

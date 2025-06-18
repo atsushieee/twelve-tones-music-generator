@@ -39,7 +39,6 @@
               :dissonanceLevelValue="globalSettings.dissonanceLevel"
               :volumeFactorValue="globalSettings.volumeFactor"
               :tempoFactorValue="globalSettings.tempoFactor"
-              :instrumentValue="globalSettings.instrument"
               class="mb-4"
             />
 
@@ -86,15 +85,11 @@ const isPlaying = ref(false)
 const globalSettings = ref({
   dissonanceLevel: 1.0,
   tempoFactor: 1.0,
-  volumeFactor: 1.0,
-  instrument: 'piano'
+  volumeFactor: 1.0
 })
 
 const handleSettingsChange = (settings) => {
   globalSettings.value = settings
-  if (settings.instrument) {
-    tonePlayer.setInstrument(settings.instrument)
-  }
 }
 
 async function togglePlay() {
@@ -124,8 +119,7 @@ function handleFetchNotes(data) {
     globalParams: { 
       dissonanceLevel: globalSettings.value.dissonanceLevel,
       tempoFactor: globalSettings.value.tempoFactor,
-      volumeFactor: globalSettings.value.volumeFactor,
-      instrument: globalSettings.value.instrument,
+      volumeFactor: globalSettings.value.volumeFactor
     }
   })
 }

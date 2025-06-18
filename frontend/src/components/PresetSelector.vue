@@ -19,6 +19,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useInstruments } from '../composables/useInstruments'
 
 const props = defineProps({
   voicesContainer: {
@@ -33,14 +34,15 @@ const props = defineProps({
 
 const emit = defineEmits(['settings-change'])
 
+const { getInstrumentConfig } = useInstruments()
+
 const presets = [
   {
     name: 'Default',
     value: { 
       dissonanceLevel: 1.0, 
       tempoFactor: 1.0, 
-      volumeFactor: 1.0, 
-      instrument: 'piano', 
+      volumeFactor: 1.0,
       voices: [
         {
           velocity: 1.0,
@@ -52,7 +54,8 @@ const presets = [
           rest: false,
           restProbability: 25,
           chordProbability: 0,
-          melodicCoherence: 0
+          melodicCoherence: 0,
+          instrument: 'piano'
         }
       ]
     }
@@ -63,7 +66,6 @@ const presets = [
       dissonanceLevel: 0.05, 
       tempoFactor: 0.5, 
       volumeFactor: 0.8, 
-      instrument: 'piano', 
       voices: [
         {
           velocity: 1.0,
@@ -75,7 +77,8 @@ const presets = [
           rest: true,
           restProbability: 40,
           chordProbability: 0,
-          melodicCoherence: 0
+          melodicCoherence: 0,
+          instrument: 'piano'
         },
         {
           velocity: 1.0,
@@ -87,7 +90,8 @@ const presets = [
           rest: true,
           restProbability: 40,
           chordProbability: 0,
-          melodicCoherence: 0
+          melodicCoherence: 0,
+          instrument: 'violin'
         }
       ]
     }
