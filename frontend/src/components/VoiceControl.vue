@@ -96,7 +96,7 @@
         />
       </div>
 
-      <div class="my-4">
+      <div class="my-4" v-if="instrumentSettings.showVelocityVariation">
         <v-slider
           v-model="params.velocityVariation"
           :min="0"
@@ -115,9 +115,9 @@
       <div class="my-4">
         <v-slider
           v-model="params.tempo"
-          :min="60"
-          :max="480"
-          :step="10"
+          :min="instrumentSettings.minTempo"
+          :max="instrumentSettings.maxTempo"
+          :step="instrumentSettings.tempoStep"
           label="Tempo"
           thumb-label="always"
           hide-details
@@ -128,7 +128,7 @@
         </v-slider>
       </div>
 
-      <div class="my-4">
+      <div class="my-4" v-if="instrumentSettings.showComplexity">
         <v-slider
           v-model="params.duration"
           :min="0"
@@ -147,7 +147,7 @@
         </div>
       </div>
 
-      <div class="my-4">
+      <div class="my-4" v-if="instrumentSettings.showRange">
         <v-row>
           <v-col cols="6">
             <v-select
@@ -170,7 +170,7 @@
         </v-row>
       </div>
 
-      <v-row class="my-4">
+      <v-row class="my-4" v-if="instrumentSettings.showRest">
         <v-col cols="4">
           <v-switch
             v-model="params.rest"
@@ -197,11 +197,11 @@
         </v-col>
       </v-row>
 
-      <div class="my-4">
+      <div class="my-4" v-if="instrumentSettings.showChordProbability">
         <v-slider
           v-model="params.chordProbability"
           :min="0"
-          :max="100"
+          :max="instrumentSettings.chordProbabilityMax"
           :step="5"
           label="Simultaneity Probability"
           thumb-label="always"
@@ -215,6 +215,58 @@
           {{ getChordProbabilityDescription(params.chordProbability) }}
         </div>
       </div>
+
+      <!-- Instrument-specific settings -->
+      <div v-if="instrumentSettings.specialSettings.length > 0" class="mt-6">
+        <v-divider class="mb-4"></v-divider>
+        <div class="text-subtitle-2 mb-3 font-weight-bold" :style="{ color: instrumentConfig.color }">
+          {{ instrumentConfig.displayName }} Settings
+        </div>
+        
+        <div 
+          v-for="setting in instrumentSettings.specialSettings" 
+          :key="setting.id" 
+          class="my-4"
+        >
+          <!-- Select type setting -->
+          <v-select
+            v-if="setting.type === 'select'"
+            v-model="params[setting.id]"
+            :items="setting.options"
+            :label="setting.label"
+            hide-details
+            variant="outlined"
+            density="compact"
+          />
+          
+          <!-- Switch type setting -->
+          <v-switch
+            v-else-if="setting.type === 'switch'"
+            v-model="params[setting.id]"
+            :label="setting.label"
+            hide-details
+            :color="instrumentConfig.color"
+          />
+          
+          <!-- Slider type setting -->
+          <div v-else-if="setting.type === 'slider'">
+            <v-slider
+              v-model="params[setting.id]"
+              :min="setting.min"
+              :max="setting.max"
+              :step="setting.step"
+              :label="setting.label"
+              thumb-label="always"
+              hide-details
+              :disabled="setting.dependsOn ? !params[setting.dependsOn] : false"
+            >
+              <template v-slot:thumb-label="{ modelValue }">
+                {{ modelValue }}{{ setting.unit || '' }}
+              </template>
+            </v-slider>
+          </div>
+        </div>
+      </div>
     </v-card-text>
   </v-card>
 </template>
@@ -225,7 +277,7 @@ import * as Tone from 'tone'
 import { useWebSocketStore } from '../stores/websocket'
 import { useInstruments } from '../composables/useInstruments'
 
-const { getAvailableInstruments, getInstrumentInfo, getInstrumentConfig } = useInstruments()
+const { getAvailableInstruments, getInstrumentInfo, getInstrumentConfig, getInstrumentSettings } = useInstruments()
 
 const props = defineProps({
   voiceId: {
@@ -261,25 +313,55 @@ const props = defineProps({
 const emit = defineEmits(['delete', 'update:params', 'play-note', 'fetch-notes'])
 const webSocketStore = useWebSocketStore()
 
-// each voice has its own parameters
+// Each voice has its own parameters
 const params = ref({...props.params})
 
-// watch for props.params changes to update internal params
+// Watch for props.params changes to update internal params
 watch(() => props.params, (newParams) => {
   params.value = { ...newParams }
 }, { deep: true })
 
-// manage playing state
+// Manage playing state
 const isActive = ref(false)
 const nextNoteTime = ref(null)
 const schedulerTimer = ref(null)
 
-// 利用可能な楽器リストを取得
+// Get available instruments list
 const availableInstruments = getAvailableInstruments()
 
-// 現在選択されている楽器の設定情報
+// Current selected instrument configuration
 const instrumentConfig = computed(() => {
   return getInstrumentConfig(params.value.instrument)
+})
+
+// Current selected instrument detailed settings
+const instrumentSettings = computed(() => {
+  return getInstrumentSettings(params.value.instrument)
+})
+
+// Handle instrument change
+watch(() => params.value.instrument, (newInstrument, oldInstrument) => {
+  if (newInstrument !== oldInstrument) {
+    const settings = getInstrumentSettings(newInstrument)
+    
+    // Apply default range
+    if (settings.defaultRange) {
+      params.value.rangeLower = settings.defaultRange.lower
+      params.value.rangeUpper = settings.defaultRange.upper
+    }
+    
+    // Set instrument-specific default values
+    settings.specialSettings.forEach(setting => {
+      if (!(setting.id in params.value)) {
+        params.value[setting.id] = setting.default
+      }
+    })
+    
+    // Adjust chord probability
+    if (params.value.chordProbability > settings.chordProbabilityMax) {
+      params.value.chordProbability = settings.chordProbabilityMax
+    }
+  }
 })
 
 function startPlaying() {
@@ -308,7 +390,7 @@ function scheduleNextNote() {
   }
 
   const noteData = voiceQueue.shift()
-  // update voiceQueue
+  // Update voiceQueue
   webSocketStore.updateVoiceQueue(props.voiceId, voiceQueue)
 
   if (noteData.notes && noteData.notes.length > 0) {
@@ -327,7 +409,7 @@ function scheduleNextNote() {
     })
   }
 
-  // calculate the time to play the next note
+  // Calculate the time to play the next note
   const duration = getDurationInMilliseconds(noteData.duration, params.value.tempo * props.globalSettings.tempoFactor)
   nextNoteTime.value = Tone.now() + (duration / 1000)
 
@@ -355,7 +437,7 @@ function getVoiceQueue(voiceId) {
   return webSocketStore.getVoiceQueue(voiceId)
 }
 
-// convert note length to milliseconds
+// Convert note length to milliseconds
 function getDurationInMilliseconds(duration, tempo) {
   const durationMap = {
     '2n': 2,
@@ -369,7 +451,7 @@ function getDurationInMilliseconds(duration, tempo) {
   return (60000 / tempo) * beats
 }
 
-// generate note options
+// Generate note options
 const noteOptions = Array.from({ length: 88 }, (_, i) => {
   const midiNumber = i + 21 // A0 (21) ~ C8 (108)
   return {
@@ -378,7 +460,7 @@ const noteOptions = Array.from({ length: 88 }, (_, i) => {
   }
 })
 
-// convert MIDI note number to note name
+// Convert MIDI note number to note name
 function midiToNoteName(midi) {
   const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
   const note = noteNames[midi % 12]
@@ -402,7 +484,7 @@ function getChordProbabilityDescription(value) {
   return '1 or 2 or 3 notes'
 }
 
-// generate description for note complexity
+// Generate description for note complexity
 function getDurationDescription(value) {
   if (value <= 0) {
     return "half note only"

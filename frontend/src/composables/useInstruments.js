@@ -1,34 +1,76 @@
-import { ref, computed } from 'vue'
-
-// 楽器設定の定義
+// Instrument configuration definition
 const INSTRUMENT_CONFIG = {
   piano: {
     id: 'piano',
     title: 'Piano',
     displayName: 'Piano',
     icon: 'mdi-piano',
-    color: '#2196F3', // ブルー
+    color: '#2196F3', // Blue
     bgColor: '#E3F2FD',
     category: 'keyboard',
-    description: 'Acoustic Grand Piano'
+    description: 'Acoustic Grand Piano',
+    settings: {
+      showVelocityVariation: true,
+      showChordProbability: true,
+      showComplexity: true,
+      showRange: true,
+      showRest: true,
+      maxTempo: 480,
+      minTempo: 60,
+      tempoStep: 10,
+      defaultRange: { lower: 60, upper: 76 },
+      chordProbabilityMax: 100,
+      specialSettings: []
+    }
   },
   violin: {
     id: 'violin',
     title: 'Strings',
     displayName: 'Violin',
     icon: 'mdi-violin',
-    color: '#FF9800', // オレンジ
+    color: '#FF9800', // Orange
     bgColor: '#FFF3E0',
     category: 'strings',
-    description: 'Violin Strings'
+    description: 'Violin Strings',
+    settings: {
+      showVelocityVariation: true,
+      showChordProbability: true,
+      showComplexity: true,
+      showRange: true,
+      showRest: true,
+      maxTempo: 400,
+      minTempo: 80,
+      tempoStep: 10,
+      defaultRange: { lower: 55, upper: 93 }, // G3-A6 (typical violin range)
+      chordProbabilityMax: 50, // Violin has limited simultaneous notes
+      specialSettings: [
+        {
+          id: 'bowingStyle',
+          type: 'select',
+          label: 'Bowing Style',
+          options: [
+            { title: 'Legato', value: 'legato' },
+            { title: 'Staccato', value: 'staccato' },
+            { title: 'Spiccato', value: 'spiccato' }
+          ],
+          default: 'legato'
+        },
+        {
+          id: 'vibrato',
+          type: 'switch',
+          label: 'Vibrato',
+          default: false
+        }
+      ]
+    }
   },
-  // 将来追加予定の楽器
+  // Future instruments to be added
   drum: {
     id: 'drum',
     title: 'Drums',
     displayName: 'Drum Kit',
     icon: 'mdi-drum',
-    color: '#F44336', // レッド
+    color: '#F44336', // Red
     bgColor: '#FFEBEE',
     category: 'percussion',
     description: 'Acoustic Drum Kit'
@@ -38,7 +80,7 @@ const INSTRUMENT_CONFIG = {
     title: 'Synth',
     displayName: 'Synthesizer',
     icon: 'mdi-sine-wave',
-    color: '#9C27B0', // パープル
+    color: '#9C27B0', // Purple
     bgColor: '#F3E5F5',
     category: 'electronic',
     description: 'Electronic Synthesizer'
@@ -48,7 +90,7 @@ const INSTRUMENT_CONFIG = {
     title: 'Bass',
     displayName: 'Electric Bass',
     icon: 'mdi-guitar-electric',
-    color: '#4CAF50', // グリーン
+    color: '#4CAF50', // Green
     bgColor: '#E8F5E8',
     category: 'bass',
     description: 'Electric Bass Guitar'
@@ -58,7 +100,7 @@ const INSTRUMENT_CONFIG = {
     title: 'Guitar',
     displayName: 'Acoustic Guitar',
     icon: 'mdi-guitar-acoustic',
-    color: '#795548', // ブラウン
+    color: '#795548', // Brown
     bgColor: '#EFEBE9',
     category: 'strings',
     description: 'Acoustic Guitar'
@@ -68,7 +110,7 @@ const INSTRUMENT_CONFIG = {
     title: 'Flute',
     displayName: 'Flute',
     icon: 'mdi-flute',
-    color: '#00BCD4', // シアン
+    color: '#00BCD4', // Cyan
     bgColor: '#E0F2F1',
     category: 'woodwind',
     description: 'Concert Flute'
@@ -78,18 +120,18 @@ const INSTRUMENT_CONFIG = {
     title: 'Trumpet',
     displayName: 'Trumpet',
     icon: 'mdi-trumpet',
-    color: '#FFC107', // アンバー
+    color: '#FFC107', // Amber
     bgColor: '#FFFDE7',
     category: 'brass',
     description: 'Bb Trumpet'
   }
 }
 
-// 現在利用可能な楽器（サンプルが用意されているもの）
+// Currently available instruments (with samples prepared)
 const AVAILABLE_INSTRUMENTS = ['piano', 'violin']
 
 export function useInstruments() {
-  // 利用可能な楽器のリストを取得
+  // Get list of available instruments
   const getAvailableInstruments = () => {
     return AVAILABLE_INSTRUMENTS.map(id => ({
       title: INSTRUMENT_CONFIG[id].title,
@@ -97,12 +139,12 @@ export function useInstruments() {
     }))
   }
 
-  // 楽器の詳細情報を取得
+  // Get instrument details
   const getInstrumentInfo = (instrumentId) => {
     return INSTRUMENT_CONFIG[instrumentId] || INSTRUMENT_CONFIG.piano
   }
 
-  // 楽器の設定情報を取得
+  // Get instrument configuration
   const getInstrumentConfig = (instrumentId) => {
     const config = INSTRUMENT_CONFIG[instrumentId]
     if (!config) return INSTRUMENT_CONFIG.piano
@@ -113,9 +155,16 @@ export function useInstruments() {
     }
   }
 
+  // Get instrument-specific settings
+  const getInstrumentSettings = (instrumentId) => {
+    const config = INSTRUMENT_CONFIG[instrumentId]
+    return config?.settings || INSTRUMENT_CONFIG.piano.settings
+  }
+
   return {
     getAvailableInstruments,
     getInstrumentInfo,
-    getInstrumentConfig
+    getInstrumentConfig,
+    getInstrumentSettings
   }
 }
