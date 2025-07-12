@@ -112,7 +112,7 @@
         </v-slider>
       </div>
 
-      <div class="my-4">
+      <div class="my-4" v-if="instrumentSettings.showTempo">
         <v-slider
           v-model="params.tempo"
           :min="instrumentSettings.minTempo"

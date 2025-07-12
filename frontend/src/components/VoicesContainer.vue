@@ -343,7 +343,7 @@ function setVoiceCountWithSettings(voiceSettings) {
   console.log(`Voice count and settings applied: ${voices.value.length} voices with individual settings`)
 }
 
-const emit = defineEmits(['play-note', 'fetch-notes'])
+const emit = defineEmits(['play-note', 'fetch-notes', 'update-synth-frequency'])
 
 defineExpose({
   startAllVoices,

@@ -24,7 +24,8 @@ import { useInstruments } from '../composables/useInstruments'
 const props = defineProps({
   voicesContainer: {
     type: Object,
-    required: true
+    required: false,
+    default: null
   },
   tonePlayer: {
     type: Object,
@@ -124,5 +125,3 @@ const applyPreset = (foundPreset) => {
   }
 }
 </script>
-
-    props.voicesContainer.setVoiceCountWithSettings(foundPreset.value.voices)

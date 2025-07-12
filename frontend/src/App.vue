@@ -14,6 +14,7 @@
             </v-alert>
 
             <PresetSelector
+              v-if="voicesContainer"
               :voices-container="voicesContainer"
               :tone-player="tonePlayer"
               @settings-change="handleSettingsChange"
@@ -42,6 +43,8 @@
               class="mb-4"
             />
 
+            <CrystalBowl />
+
             <VoicesContainer
               ref="voicesContainer"
               class="mb-4"
@@ -64,6 +67,7 @@ import { useTonePlayer } from './composables/useTonePlayer'
 import GlobalControls from './components/GlobalControls.vue'
 import VoicesContainer from './components/VoicesContainer.vue'
 import PresetSelector from './components/PresetSelector.vue'
+import CrystalBowl from './components/CrystalBowl.vue'
 
 const webSocketStore = useWebSocketStore()
 const isConnected = computed(() => webSocketStore.isConnected)

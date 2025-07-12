@@ -9,6 +9,7 @@ const INSTRUMENT_CONFIG = {
     bgColor: '#E3F2FD',
     category: 'keyboard',
     description: 'Acoustic Grand Piano',
+    audioType: 'sample',
     settings: {
       showVelocityVariation: true,
       showChordProbability: true,
@@ -32,6 +33,7 @@ const INSTRUMENT_CONFIG = {
     bgColor: '#FFF3E0',
     category: 'strings',
     description: 'Violin Strings',
+    audioType: 'sample',
     settings: {
       showVelocityVariation: true,
       showChordProbability: true,
@@ -64,6 +66,38 @@ const INSTRUMENT_CONFIG = {
       ]
     }
   },
+  synth: {
+    id: 'synth',
+    title: 'Synth',
+    displayName: 'Crystal Bowl Synth',
+    icon: 'mdi-sine-wave',
+    color: '#9C27B0', // Purple
+    bgColor: '#F3E5F5',
+    category: 'electronic',
+    description: 'Tibetan crystal bowl style synthesizer',
+    audioType: 'synthesized',
+    settings: {
+      showVelocityVariation: false,
+      showChordProbability: false,
+      showComplexity: false,
+      showRange: false,
+      showRest: false,
+      isContinuous: true,
+      showTempo: false,
+      specialSettings: [
+        {
+          id: 'frequency',
+          type: 'slider',
+          label: 'Frequency (Hz)',
+          min: 60,
+          max: 1000,
+          step: 1,
+          default: 256, // Middle frequency for relaxation
+          description: 'Adjust the pitch of the sound'
+        }
+      ]
+    }
+  },
   // Future instruments to be added
   drum: {
     id: 'drum',
@@ -74,16 +108,6 @@ const INSTRUMENT_CONFIG = {
     bgColor: '#FFEBEE',
     category: 'percussion',
     description: 'Acoustic Drum Kit'
-  },
-  synth: {
-    id: 'synth',
-    title: 'Synth',
-    displayName: 'Synthesizer',
-    icon: 'mdi-sine-wave',
-    color: '#9C27B0', // Purple
-    bgColor: '#F3E5F5',
-    category: 'electronic',
-    description: 'Electronic Synthesizer'
   },
   bass: {
     id: 'bass',
@@ -128,7 +152,7 @@ const INSTRUMENT_CONFIG = {
 }
 
 // Currently available instruments (with samples prepared)
-const AVAILABLE_INSTRUMENTS = ['piano', 'violin']
+const AVAILABLE_INSTRUMENTS = ['piano', 'violin', 'synth']
 
 export function useInstruments() {
   // Get list of available instruments
