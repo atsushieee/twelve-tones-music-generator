@@ -4,6 +4,9 @@ import * as Tone from 'tone'
 export function useTonePlayer() {
   const isReady = ref(false)
   const currentInstrument = ref('piano') // デフォルトはピアノ
+  
+  // To manage independent all synths
+  const voiceSynths = new Map()
 
   const sampler = new Tone.Sampler({
     urls: generateUrls(),
@@ -48,6 +51,25 @@ export function useTonePlayer() {
     }
   }).toDestination()
 
+  // Dependent on voiceId, create a synth for each voice
+  const createVoiceSynth = (voiceId) => {    
+    const synth = new Tone.Synth({
+      oscillator: {
+        type: 'sine'
+      },
+      envelope: {
+        attack: 0.1,
+        decay: 0.3,
+        sustain: 0.5,
+        release: 1.0
+      }
+    }).toDestination()
+    
+    voiceSynths.set(voiceId, synth)
+    console.log(`Created independent synth for voice ${voiceId}`)
+    return synth
+  }
+
   // wait for load sampler
   const waitForLoad = async () => {
     if (isReady.value) return
@@ -65,8 +87,8 @@ export function useTonePlayer() {
     console.log('Samples ready')
   }
 
-  // 楽器を指定して演奏する新しいplayNote関数
-  const playNote = ({ noteName, duration, velocity, time, instrument }) => {
+  // This method is called from each voice (VoiceControl.vue)
+  const playNote = ({ noteName, duration, velocity, time, instrument, voiceId }) => {
     if (!isReady.value) {
       console.warn('Tone player not ready')
       return
@@ -82,6 +104,21 @@ export function useTonePlayer() {
         time,
         velocity
       )
+    } else if (targetInstrument === 'synth') {
+      if (voiceId) {
+        let voiceSynth = voiceSynths.get(voiceId)
+        if (!voiceSynth) {
+          voiceSynth = createVoiceSynth(voiceId)
+        }
+        voiceSynth.triggerAttackRelease(
+          noteName,
+          duration,
+          time,
+          velocity
+        )
+      } else {
+        console.warn('Synth playNote called without voiceId')
+      }
     } else {
       sampler.triggerAttackRelease(
         noteName,
@@ -95,18 +132,10 @@ export function useTonePlayer() {
   const startAudioContext = async () => {
     await Tone.start()
   }
-  
-  const setInstrument = (instrument) => {
-    currentInstrument.value = instrument
-    console.log(`Instrument changed to ${instrument}`)
-  }
 
   return {
-    isReady,
     waitForLoad,
     playNote,
     startAudioContext,
-    setInstrument,
-    currentInstrument
   }
 } 

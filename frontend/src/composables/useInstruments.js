@@ -77,25 +77,17 @@ const INSTRUMENT_CONFIG = {
     description: 'Tibetan crystal bowl style synthesizer',
     audioType: 'synthesized',
     settings: {
-      showVelocityVariation: false,
-      showChordProbability: false,
-      showComplexity: false,
-      showRange: false,
-      showRest: false,
-      isContinuous: true,
-      showTempo: false,
-      specialSettings: [
-        {
-          id: 'frequency',
-          type: 'slider',
-          label: 'Frequency (Hz)',
-          min: 60,
-          max: 1000,
-          step: 1,
-          default: 256, // Middle frequency for relaxation
-          description: 'Adjust the pitch of the sound'
-        }
-      ]
+      showVelocityVariation: true,
+      showChordProbability: true,
+      showComplexity: true,
+      showRange: true,
+      showRest: true,
+      maxTempo: 480,
+      minTempo: 60,
+      tempoStep: 10,
+      defaultRange: { lower: 60, upper: 76 },
+      chordProbabilityMax: 100,
+      specialSettings: []
     }
   },
   // Future instruments to be added
