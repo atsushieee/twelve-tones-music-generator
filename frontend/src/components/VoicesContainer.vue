@@ -22,6 +22,7 @@
                 @delete="removeVoice(voice.id)"
                 @play-note="handlePlayNote"
                 @fetch-notes="handleFetchNotes"
+                @stop-synth2="handleStopSynth2"
                 :params="voice.params"
                 @update:params="(newParams) => voice.params = newParams"
                 style="width: 400px"
@@ -275,6 +276,8 @@ function removeVoice(id) {
     voiceRef.stopPlaying()
   }
 
+  emit('stop-synth2', id)
+
   webSocketStore.sendMessage({
     type: 'voice_removed',
     voiceId: id
@@ -304,6 +307,10 @@ function handlePlayNote(noteData) {
 
 function handleFetchNotes(data) {
   emit('fetch-notes', data)
+}
+
+function handleStopSynth2(voiceId) {
+  emit('stop-synth2', voiceId)
 }
 
 // Function to set voice count and individual settings simultaneously
@@ -343,7 +350,7 @@ function setVoiceCountWithSettings(voiceSettings) {
   console.log(`Voice count and settings applied: ${voices.value.length} voices with individual settings`)
 }
 
-const emit = defineEmits(['play-note', 'fetch-notes', 'update-synth-frequency'])
+const emit = defineEmits(['play-note', 'fetch-notes', 'stop-synth2'])
 
 defineExpose({
   startAllVoices,

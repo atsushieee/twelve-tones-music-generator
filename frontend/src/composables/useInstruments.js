@@ -90,6 +90,38 @@ const INSTRUMENT_CONFIG = {
       specialSettings: []
     }
   },
+  synth2: {
+    id: 'synth2',
+    title: 'Synth2',
+    displayName: 'Continuous Synth',
+    icon: 'mdi-sine-wave',
+    color: '#9C27B0', // Purple
+    bgColor: '#F3E5F5',
+    category: 'electronic',
+    description: 'Continuous tone synthesizer',
+    audioType: 'synthesized',
+    settings: {
+      showVelocityVariation: true,
+      showChordProbability: false,
+      showComplexity: false,
+      showRange: false,
+      showRest: false,
+      isContinuous: true,
+      showTempo: false,
+      specialSettings: [
+        {
+          id: 'frequency',
+          type: 'slider',
+          label: 'Frequency (Hz)',
+          min: 100,
+          max: 1000,
+          step: 1,
+          default: 432,
+          description: 'Adjust the pitch of the continuous tone'
+        }
+      ]
+    }
+  },
   // Future instruments to be added
   drum: {
     id: 'drum',
@@ -144,7 +176,7 @@ const INSTRUMENT_CONFIG = {
 }
 
 // Currently available instruments (with samples prepared)
-const AVAILABLE_INSTRUMENTS = ['piano', 'violin', 'synth']
+const AVAILABLE_INSTRUMENTS = ['piano', 'violin', 'synth', 'synth2']
 
 export function useInstruments() {
   // Get list of available instruments

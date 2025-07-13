@@ -310,7 +310,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['delete', 'update:params', 'play-note', 'fetch-notes'])
+const emit = defineEmits(['delete', 'update:params', 'play-note', 'fetch-notes', 'stop-synth2'])
 const webSocketStore = useWebSocketStore()
 
 // Each voice has its own parameters
@@ -342,6 +342,11 @@ const instrumentSettings = computed(() => {
 // Handle instrument change
 watch(() => params.value.instrument, (newInstrument, oldInstrument) => {
   if (newInstrument !== oldInstrument) {
+    // synth2 is continuous tone, so stop it when instrument changes
+    if (oldInstrument === 'synth2') {
+      emit('stop-synth2', props.voiceId)
+    }
+    
     const settings = getInstrumentSettings(newInstrument)
     
     // Apply default range
@@ -373,6 +378,9 @@ function startPlaying() {
 
 function stopPlaying() {
   isActive.value = false
+  if (params.value.instrument === 'synth2') {
+    emit('stop-synth2', props.voiceId)
+  }
   if (schedulerTimer.value) {
     clearTimeout(schedulerTimer.value)
     schedulerTimer.value = null
@@ -404,7 +412,9 @@ function scheduleNextNote() {
         duration: noteData.duration,
         velocity: adjustedVelocity,
         time: nextNoteTime.value || now,
-        instrument: params.value.instrument
+        instrument: params.value.instrument,
+        params: params.value,
+        globalSettings: props.globalSettings
       })
     })
   }

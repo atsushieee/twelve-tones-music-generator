@@ -52,6 +52,7 @@
               :is-playing="isPlaying"
               @play-note="handlePlayNote"
               @fetch-notes="handleFetchNotes"
+              @stop-synth2="handleStopSynth2"
             />
           </v-col>
         </v-row>
@@ -111,6 +112,10 @@ async function togglePlay() {
 
 function handlePlayNote(noteData) {
   tonePlayer.playNote(noteData)
+}
+
+function handleStopSynth2(voiceId) {
+  tonePlayer.stopVoiceSynth2(voiceId)
 }
 
 // Request note generation from backend via WebSocket
