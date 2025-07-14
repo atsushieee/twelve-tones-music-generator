@@ -92,13 +92,13 @@ const INSTRUMENT_CONFIG = {
   },
   synth2: {
     id: 'synth2',
-    title: 'Synth2',
-    displayName: 'Continuous Synth',
+    title: 'Crystal Bowl',
+    displayName: 'Crystal Bowl',
     icon: 'mdi-sine-wave',
-    color: '#9C27B0', // Purple
+    color: '#9C27B0',
     bgColor: '#F3E5F5',
     category: 'electronic',
-    description: 'Continuous tone synthesizer',
+    description: 'Tibetan crystal bowl with harmonics',
     audioType: 'synthesized',
     settings: {
       showVelocityVariation: true,
@@ -118,6 +118,26 @@ const INSTRUMENT_CONFIG = {
           step: 1,
           default: 432,
           description: 'Adjust the pitch of the continuous tone'
+        },
+        {
+          id: 'harmonicIntensity',
+          type: 'slider',
+          label: 'Harmonic Intensity',
+          min: 0,
+          max: 100,
+          step: 1,
+          default: 40,
+          description: 'Adjust the strength of harmonic overtones'
+        },
+        {
+          id: 'harmonicSpread',
+          type: 'slider',
+          label: 'Harmonic Spread',
+          min: 1,
+          max: 5,
+          step: 1,
+          default: 3,
+          description: 'Number of harmonic overtones'
         }
       ]
     }
