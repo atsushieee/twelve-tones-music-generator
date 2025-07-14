@@ -155,7 +155,7 @@ import VoiceControl from './VoiceControl.vue'
 import { useWebSocketStore } from '../stores/websocket'
 import { useInstruments } from '../composables/useInstruments'
 
-const { getAvailableInstruments, getInstrumentConfig } = useInstruments()
+const { getAvailableInstruments, getInstrumentConfig, getInstrumentSettings } = useInstruments()
 
 const voiceRefs = ref([])
 const nextVoiceId = ref(2) // the first voice is 1, so the next is 2
@@ -234,6 +234,12 @@ function addVoice(rangeType = 'middle', instrumentType = 'piano') {
     melodicCoherence: 0,
     instrument: instrumentType  // set selected instrument
   }
+  
+  // 選択された楽器の特別設定のデフォルト値を追加
+  const instrumentSettings = getInstrumentSettings(instrumentType)
+  instrumentSettings.specialSettings.forEach(setting => {
+    newVoiceParams[setting.id] = setting.default
+  })
   
   voices.value.push({
     id: newVoiceId,
