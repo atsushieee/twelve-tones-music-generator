@@ -111,20 +111,34 @@
         </div>
       </div>
 
-      <div class="my-4" v-if="instrumentSettings.showTempo">
-        <v-slider
-          v-model="params.tempo"
-          :min="instrumentSettings.minTempo"
-          :max="instrumentSettings.maxTempo"
-          :step="instrumentSettings.tempoStep"
-          label="Tempo"
-          thumb-label="always"
-          hide-details
-        >
-          <template v-slot:thumb-label="{ modelValue }">
-            {{ modelValue }}BPM
-          </template>
-        </v-slider>
+      <!-- Tempo制御 - TempoBaseクラスがあれば動的にUI生成 -->
+      <div v-if="instrumentSettings.tempo" class="my-4">
+        <v-divider class="mb-3"></v-divider>
+        <div class="text-subtitle-2 mb-3 font-weight-bold" :style="{ color: instrumentConfig.color }">
+          Tempo Settings
+        </div>
+        
+        <div v-for="config in tempoUIConfig" :key="config.key" class="my-3">
+          <!-- Slider type -->
+          <v-slider
+            v-if="config.type === 'slider'"
+            :model-value="tempoValues[config.key]"
+            @update:model-value="(value) => updateTempoParam(config.key, value)"
+            :min="config.min"
+            :max="config.max"
+            :step="config.step"
+            :label="config.label"
+            thumb-label="always"
+            hide-details
+          >
+            <template v-if="config.unit === 'bpm'" v-slot:thumb-label="{ modelValue }">
+              {{ modelValue }}BPM
+            </template>
+            <template v-else-if="config.unit === 'percent'" v-slot:thumb-label="{ modelValue }">
+              {{ modelValue }}%
+            </template>
+          </v-slider>
+        </div>
       </div>
 
       <div class="my-4" v-if="instrumentSettings.showComplexity">
@@ -347,20 +361,6 @@ const volumeUIConfig = computed(() => {
 // Reactive values for Volume UI (intensity, variation, etc.)
 const volumeValues = ref({})
 
-// Initialize Volume values when instrument changes
-watch(() => params.value.instrument, (newInstrument) => {
-  const settings = getInstrumentSettings(newInstrument)
-  if (settings.volume) {
-    const initialValues = settings.volume.getInitialValues()
-    volumeValues.value = { ...initialValues }
-    
-    // TODO: Remove this after the all params are fully integrated
-    // Sync with existing params for backward compatibility
-    params.value.velocity = initialValues.intensity
-    params.value.velocityVariation = initialValues.variation
-  }
-}, { immediate: true })
-
 // Update Volume parameters from UI interactions
 function updateVolumeParam(key, value) {
   if (instrumentSettings.value.volume) {
@@ -377,6 +377,57 @@ function updateVolumeParam(key, value) {
   }
 }
 // ======================= END VOLUME =======================
+
+// ======================= TEMPO SETTINGS =======================
+// Get UI configuration for Tempo class
+const tempoUIConfig = computed(() => {
+  return instrumentSettings.value.tempo ? instrumentSettings.value.tempo.getUIConfig() : []
+})
+
+// Reactive values for Tempo UI (bpm, variation, etc.)
+const tempoValues = ref({})
+
+// Update Tempo parameters from UI interactions
+function updateTempoParam(key, value) {
+  if (instrumentSettings.value.tempo) {
+    // Update reactive values for UI
+    tempoValues.value[key] = value
+    
+    // Update TempoBase class instance
+    instrumentSettings.value.tempo.updateParam(key, value)
+    
+    // TODO: Remove this after the all params are fully integrated
+    // Sync with existing params for backward compatibility
+    if (key === 'bpm') params.value.tempo = value
+  }
+}
+// ======================= END TEMPO =======================
+
+// Initialize class-based values when instrument changes
+watch(() => params.value.instrument, (newInstrument) => {
+  const settings = getInstrumentSettings(newInstrument)
+  
+  // Initialize Volume values
+  if (settings.volume) {
+    const volumeInitialValues = settings.volume.getInitialValues()
+    volumeValues.value = { ...volumeInitialValues }
+    
+    // TODO: Remove this after the all params are fully integrated
+    // Sync with existing params for backward compatibility
+    params.value.velocity = volumeInitialValues.intensity
+    params.value.velocityVariation = volumeInitialValues.variation
+  }
+  
+  // Initialize Tempo values
+  if (settings.tempo) {
+    const tempoInitialValues = settings.tempo.getInitialValues()
+    tempoValues.value = { ...tempoInitialValues }
+    
+    // TODO: Remove this after the all params are fully integrated
+    // Sync with existing params for backward compatibility
+    params.value.tempo = tempoInitialValues.bpm
+  }
+}, { immediate: true })
 
 // Handle instrument change
 watch(() => params.value.instrument, (newInstrument, oldInstrument) => {

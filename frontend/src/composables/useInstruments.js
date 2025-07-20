@@ -1,4 +1,5 @@
 import { VolumeBase } from './volume/VolumeBase.js'
+import { TempoBase } from './tempo/TempoBase.js'
 
 // Instrument configuration definition
 const INSTRUMENT_CONFIG = {
@@ -14,13 +15,11 @@ const INSTRUMENT_CONFIG = {
     audioType: 'sample',
     settings: {
       volume: new VolumeBase(1.0, 0),
+      tempo: new TempoBase(240, 0, 60, 480),
       showChordProbability: true,
       showComplexity: true,
       showRange: true,
       showRest: true,
-      maxTempo: 480,
-      minTempo: 60,
-      tempoStep: 10,
       defaultRange: { lower: 60, upper: 76 },
       chordProbabilityMax: 100,
       specialSettings: []
@@ -42,9 +41,6 @@ const INSTRUMENT_CONFIG = {
       showComplexity: true,
       showRange: true,
       showRest: true,
-      maxTempo: 400,
-      minTempo: 80,
-      tempoStep: 10,
       defaultRange: { lower: 55, upper: 93 }, // G3-A6 (typical violin range)
       chordProbabilityMax: 50, // Violin has limited simultaneous notes
       specialSettings: []
@@ -66,9 +62,6 @@ const INSTRUMENT_CONFIG = {
       showComplexity: true,
       showRange: true,
       showRest: true,
-      maxTempo: 480,
-      minTempo: 60,
-      tempoStep: 10,
       defaultRange: { lower: 60, upper: 76 },
       chordProbabilityMax: 100,
       specialSettings: []
@@ -91,7 +84,6 @@ const INSTRUMENT_CONFIG = {
       showRange: false,
       showRest: false,
       isContinuous: true,
-      showTempo: false,
       specialSettings: [
         {
           id: 'frequency',
