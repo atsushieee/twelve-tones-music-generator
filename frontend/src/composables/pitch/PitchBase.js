@@ -1,7 +1,7 @@
 // Base class for pitch control
 export class PitchBase {
-  constructor(instrumentId = 'default') {
-    this.instrumentId = instrumentId
+  constructor() {
+    // Base class for pitch control
   }
 
   getUIConfig() {

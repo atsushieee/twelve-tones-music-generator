@@ -3,7 +3,7 @@ import { PitchBase } from './PitchBase.js'
 // Control class for fixed pitch in realtime
 export class FixedPitch extends PitchBase {
   constructor(frequency = 432, options = {}) {
-    super(options.instrumentId || 'synth')
+    super()
     
     this.frequency = frequency    // 100-1000 Hz
     

@@ -1,6 +1,7 @@
 import { VolumeBase } from './volume/VolumeBase.js'
 import { TempoBase } from './tempo/TempoBase.js'
 import { FixedPitch } from './pitch/FixedPitch.js'
+import { RangePitch } from './pitch/RangePitch.js'
 import { HarmonicsBase } from './harmonics/HarmonicsBase.js'
 import { RhythmBase } from './rhythm/RhythmBase.js'
 
@@ -19,6 +20,7 @@ const INSTRUMENT_CONFIG = {
     settings: {
       volume: new VolumeBase(1.0, 0),
       tempo: new TempoBase(240, 0, 60, 480),
+      pitch: new RangePitch(60, 76),
       rhythm: new RhythmBase({
         complexity: 0,
         restEnabled: true,
@@ -42,6 +44,7 @@ const INSTRUMENT_CONFIG = {
     audioType: 'sample',
     settings: {
       volume: new VolumeBase(1.0, 0),
+      pitch: new RangePitch(55, 93),
       rhythm: new RhythmBase({
         complexity: 0,
         restEnabled: true,
@@ -65,6 +68,7 @@ const INSTRUMENT_CONFIG = {
     audioType: 'synthesized',
     settings: {
       volume: new VolumeBase(1.0, 0),
+      pitch: new RangePitch(60, 76),
       harmonics: new HarmonicsBase(30, 2),
       rhythm: new RhythmBase({
         complexity: 0,

@@ -116,4 +116,18 @@ export class RhythmBase {
       chordProbability: this.noteDensity
     }
   }
+
+  // Convert note length to milliseconds based on tempo
+  static getDurationInMilliseconds(duration, tempo) {
+    const durationMap = {
+      '2n': 2,
+      '4n': 1,
+      '8n': 0.5,
+      '16n': 0.25,
+      '32n': 0.125
+    }
+    
+    const beats = durationMap[duration] || 1
+    return (60000 / tempo) * beats
+  }
 } 

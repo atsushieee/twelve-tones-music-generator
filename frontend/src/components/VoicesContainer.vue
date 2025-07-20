@@ -86,48 +86,6 @@
               </v-radio>
             </v-radio-group>
           </div>
-
-          <v-divider class="my-4" />
-
-          <!-- Range Selection Section -->
-          <div>
-            <v-label class="text-subtitle-2 mb-2">Select Range</v-label>
-            <v-radio-group v-model="selectedRange" column>
-              <v-radio
-                label="High Range (E5〜A6)"
-                value="high"
-              >
-                <template v-slot:label>
-                  <div>
-                    <div class="text-body-1">High Range</div>
-                    <div class="text-caption text-grey-600">E5〜A6 (Soprano・Tenor Upper)</div>
-                  </div>
-                </template>
-              </v-radio>
-              <v-radio
-                label="Middle Range (C4〜G5)"
-                value="middle"
-              >
-                <template v-slot:label>
-                  <div>
-                    <div class="text-body-1">Middle Range</div>
-                    <div class="text-caption text-grey-600">C4〜G5 (Alto・Tenor)</div>
-                  </div>
-                </template>
-              </v-radio>
-              <v-radio
-                label="Low Range (C3〜G4)"
-                value="low"
-              >
-                <template v-slot:label>
-                  <div>
-                    <div class="text-body-1">Low Range</div>
-                    <div class="text-caption text-grey-600">C3〜G4 (Bass・Baritone)</div>
-                  </div>
-                </template>
-              </v-radio>
-            </v-radio-group>
-          </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>

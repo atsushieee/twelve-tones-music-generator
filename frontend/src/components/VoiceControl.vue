@@ -149,83 +149,73 @@
         </div>
         
         <div v-for="config in pitchUIConfig" :key="config.key" class="my-3">
-          <!-- Slider type -->
-          <v-slider
-            v-if="config.type === 'slider'"
-            :model-value="pitchValues[config.key]"
-            @update:model-value="(value) => updatePitchParam(config.key, value)"
-            :min="config.min"
-            :max="config.max"
-            :step="config.step"
-            :label="config.label"
-            thumb-label="always"
-            hide-details
-          >
-            <template v-if="config.unit === 'hz'" v-slot:thumb-label="{ modelValue }">
-              {{ modelValue }}Hz
-            </template>
-            <template v-else-if="config.unit === 'percent'" v-slot:thumb-label="{ modelValue }">
-              {{ modelValue }}%
-            </template>
-          </v-slider>
-          
-          <!-- Description for complex settings -->
-          <div v-if="config.description" class="text-caption text-grey mt-1">
-            {{ config.description }}
-          </div>
-        </div>
-      </div>
-
-      <!-- Harmonics -->
-      <div v-if="instrumentSettings.harmonics" class="my-4">
-        <v-divider class="mb-3"></v-divider>
-        <div class="text-subtitle-2 mb-3 font-weight-bold" :style="{ color: instrumentConfig.color }">
-          Harmonics Settings
-        </div>
-        
-        <div v-for="config in harmonicsUIConfig" :key="config.key" class="my-3">
-          <!-- Slider type -->
-          <v-slider
-            v-if="config.type === 'slider'"
-            :model-value="harmonicsValues[config.key]"
-            @update:model-value="(value) => updateHarmonicsParam(config.key, value)"
-            :min="config.min"
-            :max="config.max"
-            :step="config.step"
-            thumb-label="always"
-            hide-details
-          >
-            <template v-slot:label>
-              <div class="d-flex align-center">
-                {{ config.label }}
-                <v-tooltip 
-                  v-if="config.hasTooltip" 
-                  bottom
-                  max-width="300"
+          <!-- Group type (for 2-column layout) -->
+          <template v-if="config.type === 'group' && config.layout === 'columns'">
+            <v-row align="center">
+              <v-col 
+                v-for="item in config.items" 
+                :key="item.key" 
+                :cols="typeof item.col === 'number' ? item.col : 6"
+              >
+                <!-- Select type -->
+                <v-select
+                  v-if="item.type === 'select'"
+                  :model-value="pitchValues[item.key]"
+                  @update:model-value="(value) => updatePitchParam(item.key, value)"
+                  :items="item.options"
+                  :label="item.label"
+                  hide-details
+                />
+                
+                <!-- Slider type -->
+                <v-slider
+                  v-else-if="item.type === 'slider'"
+                  :model-value="pitchValues[item.key]"
+                  @update:model-value="(value) => updatePitchParam(item.key, value)"
+                  :min="item.min"
+                  :max="item.max"
+                  :step="item.step"
+                  :label="item.label"
+                  thumb-label="always"
+                  hide-details
                 >
-                  <template v-slot:activator="{ props }">
-                    <v-icon 
-                      v-bind="props" 
-                      icon="mdi-help-circle-outline" 
-                      size="16" 
-                      class="ml-1 text-grey-600"
-                    />
+                  <template v-if="item.unit === 'hz'" v-slot:thumb-label="{ modelValue }">
+                    {{ modelValue }}Hz
                   </template>
-                  <div class="text-caption">
-                    <div 
-                      v-for="item in config.tooltip" 
-                      :key="item.range"
-                    >
-                      <strong>{{ item.range }}:</strong> {{ item.description }}
-                    </div>
-                  </div>
-                </v-tooltip>
-              </div>
-            </template>
-            <template v-if="config.unit === 'percent'" v-slot:thumb-label="{ modelValue }">
-              {{ modelValue }}%
-            </template>
-          </v-slider>
+                </v-slider>
+              </v-col>
+            </v-row>
+          </template>
+          
+          <!-- Regular single controls -->
+          <template v-else>
+            <!-- Select type -->
+            <v-select
+              v-if="config.type === 'select'"
+              :model-value="pitchValues[config.key]"
+              @update:model-value="(value) => updatePitchParam(config.key, value)"
+              :items="config.options"
+              :label="config.label"
+              hide-details
+            />
+            
+            <!-- Slider type -->
+            <v-slider
+              v-else-if="config.type === 'slider'"
+              :model-value="pitchValues[config.key]"
+              @update:model-value="(value) => updatePitchParam(config.key, value)"
+              :min="config.min"
+              :max="config.max"
+              :step="config.step"
+              :label="config.label"
+              thumb-label="always"
+              hide-details
+            >
+              <template v-if="config.unit === 'hz'" v-slot:thumb-label="{ modelValue }">
+                {{ modelValue }}Hz
+              </template>
+            </v-slider>
+          </template>
         </div>
       </div>
 
@@ -362,28 +352,57 @@
           </template>
         </div>
       </div>
-
-      <div class="my-4" v-if="instrumentSettings.showRange">
-        <v-row>
-          <v-col cols="6">
-            <v-select
-              v-model="params.rangeLower"
-              :items="noteOptions"
-              label="Range (Lower)"
-              hide-details
-              @update:model-value="handleRangeChange"
-            />
-          </v-col>
-          <v-col cols="6">
-            <v-select
-              v-model="params.rangeUpper"
-              :items="noteOptions"
-              label="Range (Upper)"
-              hide-details
-              @update:model-value="handleRangeChange"
-            />
-          </v-col>
-        </v-row>
+      <!-- Harmonics -->
+      <div v-if="instrumentSettings.harmonics" class="my-4">
+        <v-divider class="mb-3"></v-divider>
+        <div class="text-subtitle-2 mb-3 font-weight-bold" :style="{ color: instrumentConfig.color }">
+          Harmonics Settings
+        </div>
+        
+        <div v-for="config in harmonicsUIConfig" :key="config.key" class="my-3">
+          <!-- Slider type -->
+          <v-slider
+            v-if="config.type === 'slider'"
+            :model-value="harmonicsValues[config.key]"
+            @update:model-value="(value) => updateHarmonicsParam(config.key, value)"
+            :min="config.min"
+            :max="config.max"
+            :step="config.step"
+            thumb-label="always"
+            hide-details
+          >
+            <template v-slot:label>
+              <div class="d-flex align-center">
+                {{ config.label }}
+                <v-tooltip 
+                  v-if="config.hasTooltip" 
+                  bottom
+                  max-width="300"
+                >
+                  <template v-slot:activator="{ props }">
+                    <v-icon 
+                      v-bind="props" 
+                      icon="mdi-help-circle-outline" 
+                      size="16" 
+                      class="ml-1 text-grey-600"
+                    />
+                  </template>
+                  <div class="text-caption">
+                    <div 
+                      v-for="item in config.tooltip" 
+                      :key="item.range"
+                    >
+                      <strong>{{ item.range }}:</strong> {{ item.description }}
+                    </div>
+                  </div>
+                </v-tooltip>
+              </div>
+            </template>
+            <template v-if="config.unit === 'percent'" v-slot:thumb-label="{ modelValue }">
+              {{ modelValue }}%
+            </template>
+          </v-slider>
+        </div>
       </div>
 
       <!-- Instrument-specific settings -->
@@ -446,6 +465,8 @@ import { mergeProps, ref, watch, computed } from 'vue'
 import * as Tone from 'tone'
 import { useWebSocketStore } from '../stores/websocket'
 import { useInstruments } from '../composables/useInstruments'
+import { RangePitch } from '../composables/pitch/RangePitch.js'
+import { RhythmBase } from '../composables/rhythm/RhythmBase.js'
 
 const { getAvailableInstruments, getInstrumentInfo, getInstrumentConfig, getInstrumentSettings } = useInstruments()
 
@@ -562,9 +583,16 @@ function updateTempoParam(key, value) {
 
 // ======================= PITCH SETTINGS =======================
 // Get UI configuration for Pitch class
-const pitchUIConfig = computed(() => {
-  return instrumentSettings.value.pitch ? instrumentSettings.value.pitch.getUIConfig() : []
-})
+const pitchUIConfig = ref([])
+
+// Function to refresh UI config (needed for dynamic constraints)
+function refreshPitchUIConfig() {
+  if (instrumentSettings.value.pitch) {
+    pitchUIConfig.value = instrumentSettings.value.pitch.getUIConfig()
+  } else {
+    pitchUIConfig.value = []
+  }
+}
 
 // Reactive values for Pitch UI (frequency, harmonicIntensity, etc.)
 const pitchValues = ref({})
@@ -578,11 +606,14 @@ function updatePitchParam(key, value) {
     // Update PitchBase class instance
     instrumentSettings.value.pitch.updateParam(key, value)
     
+    // Refresh UI config to update dynamic constraints
+    refreshPitchUIConfig()
+    
     // TODO: Remove this after the all params are fully integrated
     // Sync with existing params for backward compatibility
     if (key === 'frequency') params.value.frequency = value
-    if (key === 'harmonicIntensity') params.value.harmonicIntensity = value
-    if (key === 'harmonicSpread') params.value.harmonicSpread = value
+    if (key === 'rangeLower') params.value.rangeLower = value
+    if (key === 'rangeUpper') params.value.rangeUpper = value
   }
 }
 // ======================= END PITCH =======================
@@ -645,6 +676,9 @@ function updateRhythmParam(key, value) {
 watch(() => params.value.instrument, (newInstrument) => {
   const settings = getInstrumentSettings(newInstrument)
   
+  // Update UI configs for new instrument
+  refreshPitchUIConfig()
+  
   // Initialize Volume values
   if (settings.volume) {
     const volumeInitialValues = settings.volume.getInitialValues()
@@ -671,9 +705,14 @@ watch(() => params.value.instrument, (newInstrument) => {
     const pitchInitialValues = settings.pitch.getInitialValues()
     pitchValues.value = { ...pitchInitialValues }
     
+    // Refresh UI config for dynamic constraints
+    refreshPitchUIConfig()
+    
     // TODO: Remove this after the all params are fully integrated
     // Sync with existing params for backward compatibility
-    params.value.frequency = pitchInitialValues.frequency
+    if (pitchInitialValues.frequency) params.value.frequency = pitchInitialValues.frequency
+    if (pitchInitialValues.rangeLower) params.value.rangeLower = pitchInitialValues.rangeLower
+    if (pitchInitialValues.rangeUpper) params.value.rangeUpper = pitchInitialValues.rangeUpper
   }
   
   // Initialize Harmonics values
@@ -782,7 +821,7 @@ function scheduleNextNote() {
   }
 
   // Calculate the time to play the next note
-  const duration = getDurationInMilliseconds(noteData.duration, params.value.tempo * props.globalSettings.tempoFactor)
+  const duration = RhythmBase.getDurationInMilliseconds(noteData.duration, params.value.tempo * props.globalSettings.tempoFactor)
   nextNoteTime.value = Tone.now() + (duration / 1000)
 
   schedulerTimer.value = setTimeout(() => scheduleNextNote(), duration)
@@ -809,46 +848,8 @@ function getVoiceQueue(voiceId) {
   return webSocketStore.getVoiceQueue(voiceId)
 }
 
-// Convert note length to milliseconds
-function getDurationInMilliseconds(duration, tempo) {
-  const durationMap = {
-    '2n': 2,
-    '4n': 1,
-    '8n': 0.5,
-    '16n': 0.25,
-    '32n': 0.125
-  }
-  
-  const beats = durationMap[duration] || 1
-  return (60000 / tempo) * beats
-}
-
-// Generate note options
-const noteOptions = Array.from({ length: 88 }, (_, i) => {
-  const midiNumber = i + 21 // A0 (21) ~ C8 (108)
-  return {
-    title: midiToNoteName(midiNumber),
-    value: midiNumber
-  }
-})
-
-// Convert MIDI note number to note name
-function midiToNoteName(midi) {
-  const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-  const note = noteNames[midi % 12]
-  const octave = Math.floor(midi / 12) - 1
-  return `${note}${octave}`
-}
-
-function handleRangeChange() {
-  if (params.value.rangeLower > params.value.rangeUpper) {
-    if (params.value.rangeLower !== props.voiceId) {
-      params.value.rangeLower = params.value.rangeUpper
-    } else {
-      params.value.rangeUpper = params.value.rangeLower
-    }
-  }
-}
+// Generate note options using RangePitch class
+const noteOptions = RangePitch.generateNoteOptions(21, 108) // A0 to C8
 
 defineExpose({
   startPlaying,
