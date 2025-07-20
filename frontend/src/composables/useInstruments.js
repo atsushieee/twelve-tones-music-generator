@@ -1,3 +1,5 @@
+import { VolumeBase } from './volume/VolumeBase.js'
+
 // Instrument configuration definition
 const INSTRUMENT_CONFIG = {
   piano: {
@@ -11,7 +13,7 @@ const INSTRUMENT_CONFIG = {
     description: 'Acoustic Grand Piano',
     audioType: 'sample',
     settings: {
-      showVelocityVariation: true,
+      volume: new VolumeBase(1.0, 0),
       showChordProbability: true,
       showComplexity: true,
       showRange: true,
@@ -35,7 +37,7 @@ const INSTRUMENT_CONFIG = {
     description: 'Violin Strings',
     audioType: 'sample',
     settings: {
-      showVelocityVariation: true,
+      volume: new VolumeBase(1.0, 0),
       showChordProbability: true,
       showComplexity: true,
       showRange: true,
@@ -45,25 +47,7 @@ const INSTRUMENT_CONFIG = {
       tempoStep: 10,
       defaultRange: { lower: 55, upper: 93 }, // G3-A6 (typical violin range)
       chordProbabilityMax: 50, // Violin has limited simultaneous notes
-      specialSettings: [
-        {
-          id: 'bowingStyle',
-          type: 'select',
-          label: 'Bowing Style',
-          options: [
-            { title: 'Legato', value: 'legato' },
-            { title: 'Staccato', value: 'staccato' },
-            { title: 'Spiccato', value: 'spiccato' }
-          ],
-          default: 'legato'
-        },
-        {
-          id: 'vibrato',
-          type: 'switch',
-          label: 'Vibrato',
-          default: false
-        }
-      ]
+      specialSettings: []
     }
   },
   synth: {
@@ -77,7 +61,7 @@ const INSTRUMENT_CONFIG = {
     description: 'Tibetan crystal bowl style synthesizer',
     audioType: 'synthesized',
     settings: {
-      showVelocityVariation: true,
+      volume: new VolumeBase(1.0, 0),
       showChordProbability: true,
       showComplexity: true,
       showRange: true,
@@ -101,7 +85,7 @@ const INSTRUMENT_CONFIG = {
     description: 'Tibetan crystal bowl with harmonics',
     audioType: 'synthesized',
     settings: {
-      showVelocityVariation: true,
+      volume: new VolumeBase(0.3, 30),
       showChordProbability: false,
       showComplexity: false,
       showRange: false,

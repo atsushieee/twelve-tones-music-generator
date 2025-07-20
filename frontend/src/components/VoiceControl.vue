@@ -84,32 +84,31 @@
         </v-row>
       </div>
 
-      <div class="my-4">
-        <v-slider
-          v-model="params.velocity"
-          :min="0"
-          :max="1"
-          :step="0.1"
-          label="Volume"
-          thumb-label="always"
-          hide-details
-        />
-      </div>
-
-      <div class="my-4" v-if="instrumentSettings.showVelocityVariation">
-        <v-slider
-          v-model="params.velocityVariation"
-          :min="0"
-          :max="100"
-          :step="5"
-          label="Volume Variation"
-          thumb-label="always"
-          hide-details
-        >
-          <template v-slot:thumb-label="{ modelValue }">
-            {{ modelValue }}%
-          </template>
-        </v-slider>
+      <!-- Volume -->
+      <div v-if="instrumentSettings.volume" class="my-4">
+        <v-divider class="mb-3"></v-divider>
+        <div class="text-subtitle-2 mb-3 font-weight-bold" :style="{ color: instrumentConfig.color }">
+          Volume Settings
+        </div>
+        
+        <div v-for="config in volumeUIConfig" :key="config.key" class="my-3">
+          <!-- Slider type -->
+          <v-slider
+            v-if="config.type === 'slider'"
+            :model-value="volumeValues[config.key]"
+            @update:model-value="(value) => updateVolumeParam(config.key, value)"
+            :min="config.min"
+            :max="config.max"
+            :step="config.step"
+            :label="config.label"
+            thumb-label="always"
+            hide-details
+          >
+            <template v-if="config.unit === 'percent'" v-slot:thumb-label="{ modelValue }">
+              {{ modelValue }}%
+            </template>
+          </v-slider>
+        </div>
       </div>
 
       <div class="my-4" v-if="instrumentSettings.showTempo">
@@ -338,6 +337,46 @@ const instrumentConfig = computed(() => {
 const instrumentSettings = computed(() => {
   return getInstrumentSettings(params.value.instrument)
 })
+
+// ==================== VOLUME SETTINGS ====================
+// Get UI configuration for Volume class
+const volumeUIConfig = computed(() => {
+  return instrumentSettings.value.volume ? instrumentSettings.value.volume.getUIConfig() : []
+})
+
+// Reactive values for Volume UI (intensity, variation, etc.)
+const volumeValues = ref({})
+
+// Initialize Volume values when instrument changes
+watch(() => params.value.instrument, (newInstrument) => {
+  const settings = getInstrumentSettings(newInstrument)
+  if (settings.volume) {
+    const initialValues = settings.volume.getInitialValues()
+    volumeValues.value = { ...initialValues }
+    
+    // TODO: Remove this after the all params are fully integrated
+    // Sync with existing params for backward compatibility
+    params.value.velocity = initialValues.intensity
+    params.value.velocityVariation = initialValues.variation
+  }
+}, { immediate: true })
+
+// Update Volume parameters from UI interactions
+function updateVolumeParam(key, value) {
+  if (instrumentSettings.value.volume) {
+    // Update reactive values for UI
+    volumeValues.value[key] = value
+    
+    // Update VolumeBase class instance
+    instrumentSettings.value.volume.updateParam(key, value)
+    
+    // TODO: Remove this after the all params are fully integrated
+    // Sync with existing params for backward compatibility
+    if (key === 'intensity') params.value.velocity = value
+    if (key === 'variation') params.value.velocityVariation = value
+  }
+}
+// ======================= END VOLUME =======================
 
 // Handle instrument change
 watch(() => params.value.instrument, (newInstrument, oldInstrument) => {
