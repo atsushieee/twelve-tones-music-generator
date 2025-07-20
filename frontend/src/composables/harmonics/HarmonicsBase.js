@@ -22,7 +22,13 @@ export class HarmonicsBase {
         max: this.maxIntensity,
         step: 1,
         unit: 'percent',
-        description: 'Adjust the strength of harmonic overtones'
+        hasTooltip: true,
+        tooltip: [
+          { range: '0-25%', description: 'Very subtle harmonics, almost pure tone' },
+          { range: '26-50%', description: 'Gentle harmonics, warm sound' },
+          { range: '51-75%', description: 'Moderate harmonics, rich timbre' },
+          { range: '76-100%', description: 'Strong harmonics, complex overtones' }
+        ]
       },
       {
         key: 'spread',
@@ -32,7 +38,14 @@ export class HarmonicsBase {
         max: this.maxSpread,
         step: 1,
         unit: 'count',
-        description: 'Number of harmonic overtones'
+        hasTooltip: true,
+        tooltip: [
+          { range: '1', description: 'Base frequency only' },
+          { range: '2', description: 'Base + 2nd harmonic (octave)' },
+          { range: '3', description: 'Base + 2nd & 3rd harmonics (octave + fifth)' },
+          { range: '4', description: 'Base + 2nd-4th harmonics (more complex)' },
+          { range: '5', description: 'Base + 2nd-5th harmonics (full complexity)' }
+        ]
       }
     ]
   }

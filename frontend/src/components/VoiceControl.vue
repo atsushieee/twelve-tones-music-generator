@@ -192,38 +192,174 @@
             :min="config.min"
             :max="config.max"
             :step="config.step"
-            :label="config.label"
             thumb-label="always"
             hide-details
           >
+            <template v-slot:label>
+              <div class="d-flex align-center">
+                {{ config.label }}
+                <v-tooltip 
+                  v-if="config.hasTooltip" 
+                  bottom
+                  max-width="300"
+                >
+                  <template v-slot:activator="{ props }">
+                    <v-icon 
+                      v-bind="props" 
+                      icon="mdi-help-circle-outline" 
+                      size="16" 
+                      class="ml-1 text-grey-600"
+                    />
+                  </template>
+                  <div class="text-caption">
+                    <div 
+                      v-for="item in config.tooltip" 
+                      :key="item.range"
+                    >
+                      <strong>{{ item.range }}:</strong> {{ item.description }}
+                    </div>
+                  </div>
+                </v-tooltip>
+              </div>
+            </template>
             <template v-if="config.unit === 'percent'" v-slot:thumb-label="{ modelValue }">
               {{ modelValue }}%
             </template>
           </v-slider>
-          
-          <!-- Description for complex settings -->
-          <div v-if="config.description" class="text-caption text-grey mt-1">
-            {{ config.description }}
-          </div>
         </div>
       </div>
 
-      <div class="my-4" v-if="instrumentSettings.showComplexity">
-        <v-slider
-          v-model="params.duration"
-          :min="0"
-          :max="100"
-          :step="5"
-          label="Complexity"
-          thumb-label="always"
-          hide-details
-        >
-          <template v-slot:thumb-label="{ modelValue }">
-            {{ modelValue }}%
+      <!-- Rhythm -->
+      <div v-if="instrumentSettings.rhythm" class="my-4">
+        <v-divider class="mb-3"></v-divider>
+        <div class="text-subtitle-2 mb-3 font-weight-bold" :style="{ color: instrumentConfig.color }">
+          Rhythm Settings
+        </div>
+        
+        <div v-for="config in rhythmUIConfig" :key="config.key" class="my-3">
+          <!-- Group type (for 2-column layout) -->
+          <template v-if="config.type === 'group' && config.layout === 'columns'">
+            <v-row align="center">
+              <v-col 
+                v-for="item in config.items" 
+                :key="item.key" 
+                :cols="typeof item.col === 'number' ? item.col : 6"
+              >
+                <!-- Switch type -->
+                <v-switch
+                  v-if="item.type === 'switch'"
+                  :model-value="rhythmValues[item.key]"
+                  @update:model-value="(value) => updateRhythmParam(item.key, value)"
+                  :label="item.label"
+                  hide-details
+                  :color="instrumentConfig.color"
+                />
+                
+                <!-- Slider type -->
+                <v-slider
+                  v-else-if="item.type === 'slider'"
+                  :model-value="rhythmValues[item.key]"
+                  @update:model-value="(value) => updateRhythmParam(item.key, value)"
+                  :min="item.min"
+                  :max="item.max"
+                  :step="item.step"
+                  thumb-label="always"
+                  hide-details
+                  :disabled="item.dependsOn && !rhythmValues[item.dependsOn]"
+                >
+                  <template v-slot:label>
+                    <div class="d-flex align-center">
+                      {{ item.label }}
+                      <v-tooltip 
+                        v-if="item.hasTooltip" 
+                        bottom
+                        max-width="300"
+                      >
+                        <template v-slot:activator="{ props }">
+                          <v-icon 
+                            v-bind="props" 
+                            icon="mdi-help-circle-outline" 
+                            size="16" 
+                            class="ml-1 text-grey-600"
+                          />
+                        </template>
+                        <div class="text-caption">
+                          <div 
+                            v-for="tooltipItem in item.tooltip" 
+                            :key="tooltipItem.range"
+                          >
+                            <strong>{{ tooltipItem.range }}:</strong> {{ tooltipItem.description }}
+                          </div>
+                        </div>
+                      </v-tooltip>
+                    </div>
+                  </template>
+                  <template v-if="item.unit === 'percent'" v-slot:thumb-label="{ modelValue }">
+                    {{ modelValue }}%
+                  </template>
+                </v-slider>
+              </v-col>
+            </v-row>
           </template>
-        </v-slider>
-        <div class="text-caption text-grey">
-          {{ getDurationDescription(params.duration) }}
+          
+          <!-- Regular single controls -->
+          <template v-else>
+            <!-- Switch type -->
+            <v-switch
+              v-if="config.type === 'switch'"
+              :model-value="rhythmValues[config.key]"
+              @update:model-value="(value) => updateRhythmParam(config.key, value)"
+              :label="config.label"
+              hide-details
+              :color="instrumentConfig.color"
+            />
+            
+            <!-- Slider type -->
+            <v-slider
+              v-else-if="config.type === 'slider'"
+              :model-value="rhythmValues[config.key]"
+              @update:model-value="(value) => updateRhythmParam(config.key, value)"
+              :min="config.min"
+              :max="config.max"
+              :step="config.step"
+              thumb-label="always"
+              hide-details
+            >
+              <template v-slot:label>
+                <div class="d-flex align-center">
+                  {{ config.label }}
+                  <v-tooltip 
+                    v-if="config.hasTooltip" 
+                    bottom
+                    max-width="300"
+                  >
+                    <template v-slot:activator="{ props }">
+                      <v-icon 
+                        v-bind="props" 
+                        icon="mdi-help-circle-outline" 
+                        size="16" 
+                        class="ml-1 text-grey-600"
+                      />
+                    </template>
+                    <div class="text-caption">
+                      <div 
+                        v-for="item in config.tooltip" 
+                        :key="item.range"
+                      >
+                        <strong>{{ item.range }}:</strong> {{ item.description }}
+                      </div>
+                    </div>
+                  </v-tooltip>
+                </div>
+              </template>
+              <template v-if="config.unit === 'percent'" v-slot:thumb-label="{ modelValue }">
+                {{ modelValue }}%
+              </template>
+              <template v-else-if="config.unit === 'level'" v-slot:thumb-label="{ modelValue }">
+                Level {{ modelValue }}
+              </template>
+            </v-slider>
+          </template>
         </div>
       </div>
 
@@ -248,52 +384,6 @@
             />
           </v-col>
         </v-row>
-      </div>
-
-      <v-row class="my-4" v-if="instrumentSettings.showRest">
-        <v-col cols="4">
-          <v-switch
-            v-model="params.rest"
-            label="Rest"
-            hide-details
-            :color="params.rest ? 'green' : ''"
-          />
-        </v-col>
-        <v-col cols="8">
-          <v-slider
-            v-model="params.restProbability"
-            :min="10"
-            :max="50"
-            :step="5"
-            label="Probability"
-            thumb-label="always"
-            hide-details
-            :disabled="!params.rest"
-          >
-            <template v-slot:thumb-label="{ modelValue }">
-              {{ modelValue }}%
-            </template>
-          </v-slider>
-        </v-col>
-      </v-row>
-
-      <div class="my-4" v-if="instrumentSettings.showChordProbability">
-        <v-slider
-          v-model="params.chordProbability"
-          :min="0"
-          :max="instrumentSettings.chordProbabilityMax"
-          :step="5"
-          label="Simultaneity Probability"
-          thumb-label="always"
-          hide-details
-        >
-          <template v-slot:thumb-label="{ modelValue }">
-            {{ modelValue }}%
-          </template>
-        </v-slider>
-        <div class="text-caption text-grey">
-          {{ getChordProbabilityDescription(params.chordProbability) }}
-        </div>
       </div>
 
       <!-- Instrument-specific settings -->
@@ -523,6 +613,34 @@ function updateHarmonicsParam(key, value) {
 }
 // ======================= END HARMONICS =======================
 
+// ======================= RHYTHM SETTINGS =======================
+// Get UI configuration for Rhythm class
+const rhythmUIConfig = computed(() => {
+  return instrumentSettings.value.rhythm ? instrumentSettings.value.rhythm.getUIConfig() : []
+})
+
+// Reactive values for Rhythm UI (restEnabled, restProbability, etc.)
+const rhythmValues = ref({})
+
+// Update Rhythm parameters from UI interactions
+function updateRhythmParam(key, value) {
+  if (instrumentSettings.value.rhythm) {
+    // Update reactive values for UI
+    rhythmValues.value[key] = value
+    
+    // Update RhythmBase class instance
+    instrumentSettings.value.rhythm.updateParam(key, value)
+    
+    // TODO: Remove this after the all params are fully integrated
+    // Sync with existing params for backward compatibility
+    if (key === 'restEnabled') params.value.rest = value
+    if (key === 'restProbability') params.value.restProbability = value
+    if (key === 'complexity') params.value.duration = value
+    if (key === 'noteDensity') params.value.chordProbability = value
+  }
+}
+// ======================= END RHYTHM =======================
+
 // Initialize class-based values when instrument changes
 watch(() => params.value.instrument, (newInstrument) => {
   const settings = getInstrumentSettings(newInstrument)
@@ -567,6 +685,19 @@ watch(() => params.value.instrument, (newInstrument) => {
     // Sync with existing params for backward compatibility
     params.value.harmonicIntensity = harmonicsInitialValues.intensity
     params.value.harmonicSpread = harmonicsInitialValues.spread
+  }
+  
+  // Initialize Rhythm values
+  if (settings.rhythm) {
+    const rhythmInitialValues = settings.rhythm.getInitialValues()
+    rhythmValues.value = { ...rhythmInitialValues }
+    
+    // TODO: Remove this after the all params are fully integrated
+    // Sync with existing params for backward compatibility
+    params.value.rest = rhythmInitialValues.restEnabled
+    params.value.restProbability = rhythmInitialValues.restProbability
+    params.value.duration = rhythmInitialValues.complexity
+    params.value.chordProbability = rhythmInitialValues.noteDensity
   }
 }, { immediate: true })
 
@@ -716,27 +847,6 @@ function handleRangeChange() {
     } else {
       params.value.rangeUpper = params.value.rangeLower
     }
-  }
-}
-
-function getChordProbabilityDescription(value) {
-  if (value === 0) return '1 note only'
-  if (value <= 50) return '1 or 2 notes'
-  return '1 or 2 or 3 notes'
-}
-
-// Generate description for note complexity
-function getDurationDescription(value) {
-  if (value <= 0) {
-    return "half note only"
-  } else if (value <= 25) {
-    return "half or quarter note"
-  } else if (value <= 50) {
-    return "half, quarter or eighth note"
-  } else if (value <= 75) {
-    return "half, quarter, eighth or sixteenth note"
-  } else {
-    return "half, quarter, eighth, sixteenth or thirty-second note"
   }
 }
 

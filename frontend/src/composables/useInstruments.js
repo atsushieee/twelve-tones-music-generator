@@ -2,6 +2,7 @@ import { VolumeBase } from './volume/VolumeBase.js'
 import { TempoBase } from './tempo/TempoBase.js'
 import { FixedPitch } from './pitch/FixedPitch.js'
 import { HarmonicsBase } from './harmonics/HarmonicsBase.js'
+import { RhythmBase } from './rhythm/RhythmBase.js'
 
 // Instrument configuration definition
 const INSTRUMENT_CONFIG = {
@@ -18,12 +19,14 @@ const INSTRUMENT_CONFIG = {
     settings: {
       volume: new VolumeBase(1.0, 0),
       tempo: new TempoBase(240, 0, 60, 480),
-      showChordProbability: true,
-      showComplexity: true,
+      rhythm: new RhythmBase({
+        complexity: 0,
+        restEnabled: true,
+        restProbability: 15,
+        noteDensity: 0
+      }),
       showRange: true,
-      showRest: true,
       defaultRange: { lower: 60, upper: 76 },
-      chordProbabilityMax: 100,
       specialSettings: []
     }
   },
@@ -39,12 +42,14 @@ const INSTRUMENT_CONFIG = {
     audioType: 'sample',
     settings: {
       volume: new VolumeBase(1.0, 0),
-      showChordProbability: true,
-      showComplexity: true,
+      rhythm: new RhythmBase({
+        complexity: 0,
+        restEnabled: true,
+        restProbability: 25,
+        noteDensity: 0
+      }),
       showRange: true,
-      showRest: true,
       defaultRange: { lower: 55, upper: 93 }, // G3-A6 (typical violin range)
-      chordProbabilityMax: 50, // Violin has limited simultaneous notes
       specialSettings: []
     }
   },
@@ -60,12 +65,15 @@ const INSTRUMENT_CONFIG = {
     audioType: 'synthesized',
     settings: {
       volume: new VolumeBase(1.0, 0),
-      showChordProbability: true,
-      showComplexity: true,
+      harmonics: new HarmonicsBase(30, 2),
+      rhythm: new RhythmBase({
+        complexity: 0,
+        restEnabled: true,
+        restProbability: 20,
+        noteDensity: 0
+      }),
       showRange: true,
-      showRest: true,
       defaultRange: { lower: 60, upper: 76 },
-      chordProbabilityMax: 100,
       specialSettings: []
     }
   },
@@ -83,11 +91,7 @@ const INSTRUMENT_CONFIG = {
       volume: new VolumeBase(0.3, 30),
       pitch: new FixedPitch(432),
       harmonics: new HarmonicsBase(40, 3),
-      showChordProbability: false,
-      showComplexity: false,
       showRange: false,
-      showRest: false,
-      isContinuous: true,
       specialSettings: []
     }
   },
