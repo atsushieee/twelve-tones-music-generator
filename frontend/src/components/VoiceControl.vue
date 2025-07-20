@@ -111,7 +111,7 @@
         </div>
       </div>
 
-      <!-- Tempo制御 - TempoBaseクラスがあれば動的にUI生成 -->
+      <!-- Tempo -->
       <div v-if="instrumentSettings.tempo" class="my-4">
         <v-divider class="mb-3"></v-divider>
         <div class="text-subtitle-2 mb-3 font-weight-bold" :style="{ color: instrumentConfig.color }">
@@ -138,6 +138,73 @@
               {{ modelValue }}%
             </template>
           </v-slider>
+        </div>
+      </div>
+
+      <!-- Pitch -->
+      <div v-if="instrumentSettings.pitch" class="my-4">
+        <v-divider class="mb-3"></v-divider>
+        <div class="text-subtitle-2 mb-3 font-weight-bold" :style="{ color: instrumentConfig.color }">
+          Pitch Settings
+        </div>
+        
+        <div v-for="config in pitchUIConfig" :key="config.key" class="my-3">
+          <!-- Slider type -->
+          <v-slider
+            v-if="config.type === 'slider'"
+            :model-value="pitchValues[config.key]"
+            @update:model-value="(value) => updatePitchParam(config.key, value)"
+            :min="config.min"
+            :max="config.max"
+            :step="config.step"
+            :label="config.label"
+            thumb-label="always"
+            hide-details
+          >
+            <template v-if="config.unit === 'hz'" v-slot:thumb-label="{ modelValue }">
+              {{ modelValue }}Hz
+            </template>
+            <template v-else-if="config.unit === 'percent'" v-slot:thumb-label="{ modelValue }">
+              {{ modelValue }}%
+            </template>
+          </v-slider>
+          
+          <!-- Description for complex settings -->
+          <div v-if="config.description" class="text-caption text-grey mt-1">
+            {{ config.description }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Harmonics -->
+      <div v-if="instrumentSettings.harmonics" class="my-4">
+        <v-divider class="mb-3"></v-divider>
+        <div class="text-subtitle-2 mb-3 font-weight-bold" :style="{ color: instrumentConfig.color }">
+          Harmonics Settings
+        </div>
+        
+        <div v-for="config in harmonicsUIConfig" :key="config.key" class="my-3">
+          <!-- Slider type -->
+          <v-slider
+            v-if="config.type === 'slider'"
+            :model-value="harmonicsValues[config.key]"
+            @update:model-value="(value) => updateHarmonicsParam(config.key, value)"
+            :min="config.min"
+            :max="config.max"
+            :step="config.step"
+            :label="config.label"
+            thumb-label="always"
+            hide-details
+          >
+            <template v-if="config.unit === 'percent'" v-slot:thumb-label="{ modelValue }">
+              {{ modelValue }}%
+            </template>
+          </v-slider>
+          
+          <!-- Description for complex settings -->
+          <div v-if="config.description" class="text-caption text-grey mt-1">
+            {{ config.description }}
+          </div>
         </div>
       </div>
 
@@ -403,6 +470,59 @@ function updateTempoParam(key, value) {
 }
 // ======================= END TEMPO =======================
 
+// ======================= PITCH SETTINGS =======================
+// Get UI configuration for Pitch class
+const pitchUIConfig = computed(() => {
+  return instrumentSettings.value.pitch ? instrumentSettings.value.pitch.getUIConfig() : []
+})
+
+// Reactive values for Pitch UI (frequency, harmonicIntensity, etc.)
+const pitchValues = ref({})
+
+// Update Pitch parameters from UI interactions
+function updatePitchParam(key, value) {
+  if (instrumentSettings.value.pitch) {
+    // Update reactive values for UI
+    pitchValues.value[key] = value
+    
+    // Update PitchBase class instance
+    instrumentSettings.value.pitch.updateParam(key, value)
+    
+    // TODO: Remove this after the all params are fully integrated
+    // Sync with existing params for backward compatibility
+    if (key === 'frequency') params.value.frequency = value
+    if (key === 'harmonicIntensity') params.value.harmonicIntensity = value
+    if (key === 'harmonicSpread') params.value.harmonicSpread = value
+  }
+}
+// ======================= END PITCH =======================
+
+// ======================= HARMONICS SETTINGS =======================
+// Get UI configuration for Harmonics class
+const harmonicsUIConfig = computed(() => {
+  return instrumentSettings.value.harmonics ? instrumentSettings.value.harmonics.getUIConfig() : []
+})
+
+// Reactive values for Harmonics UI (intensity, spread, etc.)
+const harmonicsValues = ref({})
+
+// Update Harmonics parameters from UI interactions
+function updateHarmonicsParam(key, value) {
+  if (instrumentSettings.value.harmonics) {
+    // Update reactive values for UI
+    harmonicsValues.value[key] = value
+    
+    // Update HarmonicsBase class instance
+    instrumentSettings.value.harmonics.updateParam(key, value)
+    
+    // TODO: Remove this after the all params are fully integrated
+    // Sync with existing params for backward compatibility
+    if (key === 'intensity') params.value.harmonicIntensity = value
+    if (key === 'spread') params.value.harmonicSpread = value
+  }
+}
+// ======================= END HARMONICS =======================
+
 // Initialize class-based values when instrument changes
 watch(() => params.value.instrument, (newInstrument) => {
   const settings = getInstrumentSettings(newInstrument)
@@ -426,6 +546,27 @@ watch(() => params.value.instrument, (newInstrument) => {
     // TODO: Remove this after the all params are fully integrated
     // Sync with existing params for backward compatibility
     params.value.tempo = tempoInitialValues.bpm
+  }
+  
+  // Initialize Pitch values
+  if (settings.pitch) {
+    const pitchInitialValues = settings.pitch.getInitialValues()
+    pitchValues.value = { ...pitchInitialValues }
+    
+    // TODO: Remove this after the all params are fully integrated
+    // Sync with existing params for backward compatibility
+    params.value.frequency = pitchInitialValues.frequency
+  }
+  
+  // Initialize Harmonics values
+  if (settings.harmonics) {
+    const harmonicsInitialValues = settings.harmonics.getInitialValues()
+    harmonicsValues.value = { ...harmonicsInitialValues }
+    
+    // TODO: Remove this after the all params are fully integrated
+    // Sync with existing params for backward compatibility
+    params.value.harmonicIntensity = harmonicsInitialValues.intensity
+    params.value.harmonicSpread = harmonicsInitialValues.spread
   }
 }, { immediate: true })
 

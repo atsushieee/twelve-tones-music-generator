@@ -1,5 +1,7 @@
 import { VolumeBase } from './volume/VolumeBase.js'
 import { TempoBase } from './tempo/TempoBase.js'
+import { FixedPitch } from './pitch/FixedPitch.js'
+import { HarmonicsBase } from './harmonics/HarmonicsBase.js'
 
 // Instrument configuration definition
 const INSTRUMENT_CONFIG = {
@@ -79,43 +81,14 @@ const INSTRUMENT_CONFIG = {
     audioType: 'synthesized',
     settings: {
       volume: new VolumeBase(0.3, 30),
+      pitch: new FixedPitch(432),
+      harmonics: new HarmonicsBase(40, 3),
       showChordProbability: false,
       showComplexity: false,
       showRange: false,
       showRest: false,
       isContinuous: true,
-      specialSettings: [
-        {
-          id: 'frequency',
-          type: 'slider',
-          label: 'Frequency (Hz)',
-          min: 100,
-          max: 1000,
-          step: 1,
-          default: 432,
-          description: 'Adjust the pitch of the continuous tone'
-        },
-        {
-          id: 'harmonicIntensity',
-          type: 'slider',
-          label: 'Harmonic Intensity',
-          min: 0,
-          max: 100,
-          step: 1,
-          default: 40,
-          description: 'Adjust the strength of harmonic overtones'
-        },
-        {
-          id: 'harmonicSpread',
-          type: 'slider',
-          label: 'Harmonic Spread',
-          min: 1,
-          max: 5,
-          step: 1,
-          default: 3,
-          description: 'Number of harmonic overtones'
-        }
-      ]
+      specialSettings: []
     }
   },
   // Future instruments to be added

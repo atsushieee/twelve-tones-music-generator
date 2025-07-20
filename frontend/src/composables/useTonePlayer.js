@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import * as Tone from 'tone'
+import { HarmonicsBase } from './harmonics/HarmonicsBase.js'
 
 export function useTonePlayer() {
   const isReady = ref(false)
@@ -10,6 +11,9 @@ export function useTonePlayer() {
   
   // To manage continuous synth2 oscillators
   const voiceSynth2s = new Map()
+  
+  // Harmonics controller
+  const harmonicsController = new HarmonicsBase()
 
   const sampler = new Tone.Sampler({
     urls: generateUrls(),
@@ -54,23 +58,84 @@ export function useTonePlayer() {
     }
   }).toDestination()
 
-  // Dependent on voiceId, create a synth for each voice
-  const createVoiceSynth = (voiceId) => {    
-    const synth = new Tone.Synth({
-      oscillator: {
-        type: 'sine'
-      },
-      envelope: {
-        attack: 0.1,
-        decay: 0.3,
-        sustain: 0.5,
-        release: 1.0
-      }
+  // Dependent on voiceId, create a synth for each voice (with harmonics support)
+  const createVoiceSynth = (voiceId, params = {}) => {
+    // Get harmonics parameters
+    const harmonicSpread = params.harmonicSpread || 2
+    const harmonicIntensity = params.harmonicIntensity || 30
+    
+    // Create reverb effect
+    const reverb = new Tone.Reverb({
+      decay: 4,
+      wet: 0.3,
+      roomSize: 0.5
     }).toDestination()
     
-    voiceSynths.set(voiceId, synth)
-    console.log(`Created independent synth for voice ${voiceId}`)
-    return synth
+    const gain = new Tone.Gain(1.0).connect(reverb)
+    
+    // Envelope for harmonics synth
+    const envelope = new Tone.AmplitudeEnvelope({
+      attack: 0.1,
+      decay: 0.3,
+      sustain: 0.5,
+      release: 1.0
+    }).connect(gain)
+    
+    // Base oscillator
+    const baseOscillator = new Tone.Oscillator({
+      type: 'sine'
+    }).connect(envelope)
+    
+    // Harmonic oscillators
+    const harmonicOscillators = []
+    
+    const synthWithHarmonics = {
+      baseOscillator,
+      harmonicOscillators,
+      envelope,
+      gain,
+      reverb,
+      voiceId,
+      harmonicSpread,
+      harmonicIntensity,
+      isPlaying: false,
+      triggerAttackRelease: (noteName, duration, time, velocity) => {
+        const frequency = Tone.Frequency(noteName).toFrequency()
+        
+        // Set base frequency
+        baseOscillator.frequency.setValueAtTime(frequency, time)
+        
+        // Create and start harmonic oscillators
+        synthWithHarmonics.harmonicOscillators = []
+        for (let i = 0; i < harmonicSpread; i++) {
+          const harmonicNumber = i + 2 // start from 2nd harmonic
+          const harmonicFreq = frequency * harmonicNumber
+          
+          if (harmonicFreq <= 20000) { // within audible range
+            const harmOsc = new Tone.Oscillator({
+              type: 'sine',
+              frequency: harmonicFreq,
+              volume: Tone.gainToDb((harmonicIntensity / 100) * 0.3 / harmonicNumber)
+            }).connect(envelope)
+            
+            harmOsc.start(time)
+            harmOsc.stop(time + Tone.Time(duration).toSeconds())
+            synthWithHarmonics.harmonicOscillators.push(harmOsc)
+          }
+        }
+        
+        // Trigger base oscillator
+        baseOscillator.start(time)
+        baseOscillator.stop(time + Tone.Time(duration).toSeconds())
+        
+        // Trigger envelope
+        envelope.triggerAttackRelease(duration, time, velocity)
+      }
+    }
+    
+    voiceSynths.set(voiceId, synthWithHarmonics)
+    console.log(`Created harmonics-enabled synth for voice ${voiceId}`)
+    return synthWithHarmonics
   }
 
   // Create continuous synth2 for each voice
@@ -235,99 +300,12 @@ export function useTonePlayer() {
   const updateSynth2Harmonics = (voiceId, params) => {
     const synth2 = voiceSynth2s.get(voiceId)
     if (synth2 && synth2.isPlaying) {
-      const newHarmonicSpread = params.harmonicSpread || 3
-      const newHarmonicIntensity = params.harmonicIntensity || 40
-      
-      if (synth2.harmonicIntensity !== newHarmonicIntensity) {
-        updateHarmonicIntensity(voiceId, newHarmonicIntensity)
-        synth2.harmonicIntensity = newHarmonicIntensity
-      }
-      
-      if (synth2.harmonicSpread !== newHarmonicSpread) {
-        updateHarmonicSpread(voiceId, newHarmonicSpread, synth2.harmonicSpread)
-        synth2.harmonicSpread = newHarmonicSpread
-      }
+      // HarmonicsBaseクラスを使用して倍音を更新
+      harmonicsController.updateAllParams(synth2, params)
     }
   }
 
-  const updateHarmonicIntensity = (voiceId, newIntensity) => {
-    const synth2 = voiceSynth2s.get(voiceId)
-    if (synth2 && synth2.isPlaying) {
-      try {
-        const now = Tone.now()
-        const transitionTime = 0.1
-        
-        synth2.harmonicOscillators.forEach((harmOsc, index) => {
-          if (harmOsc && harmOsc.volume) {
-            const harmonicNumber = index + 2
-            const newVolume = Tone.gainToDb((newIntensity / 100) * 0.3 / harmonicNumber)
-            harmOsc.volume.linearRampToValueAtTime(newVolume, now + transitionTime)
-          }
-        })
-      } catch (error) {
-        console.error('Failed to update harmonic intensity:', error)
-      }
-    }
-  }
 
-  const updateHarmonicSpread = (voiceId, newSpread, oldSpread) => {
-    const synth2 = voiceSynth2s.get(voiceId)
-    if (synth2 && synth2.isPlaying) {
-      try {
-        if (newSpread > oldSpread) {
-          addHarmonics(voiceId, newSpread - oldSpread)
-        } else if (newSpread < oldSpread) {
-          removeHarmonics(voiceId, oldSpread - newSpread)
-        }
-      } catch (error) {
-        console.error('Failed to update harmonic spread:', error)
-      }
-    }
-  }
-
-  const addHarmonics = (voiceId, count) => {
-    const synth2 = voiceSynth2s.get(voiceId)
-    if (synth2 && synth2.isPlaying) {
-      const currentCount = synth2.harmonicOscillators.length
-      
-      for (let i = 0; i < count; i++) {
-        const harmonicNumber = currentCount + i + 2 // start from 2nd harmonic
-        const harmonicFreq = synth2.frequency * harmonicNumber
-        
-        if (harmonicFreq <= 20000) { // within audible range
-          const harmOsc = new Tone.Oscillator({
-            type: 'sine',
-            frequency: harmonicFreq,
-            volume: Tone.gainToDb((synth2.harmonicIntensity / 100) * 0.3 / harmonicNumber)
-          }).connect(synth2.envelope)
-          
-          harmOsc.start()
-          synth2.harmonicOscillators.push(harmOsc)
-        }
-      }
-      
-      console.log(`Added ${count} harmonics to voice ${voiceId}`)
-    }
-  }
-
-  const removeHarmonics = (voiceId, count) => {
-    const synth2 = voiceSynth2s.get(voiceId)
-    if (synth2 && synth2.isPlaying) {
-      for (let i = 0; i < count && synth2.harmonicOscillators.length > 0; i++) {
-        const harmOsc = synth2.harmonicOscillators.pop()
-        try {
-          if (harmOsc.state === 'started') {
-            harmOsc.stop()
-          }
-          harmOsc.dispose()
-        } catch (error) {
-          console.warn('Harmonic removal warning:', error)
-        }
-      }
-      
-      console.log(`Removed ${count} harmonics from voice ${voiceId}`)
-    }
-  }
 
   // wait for load sampler
   const waitForLoad = async () => {
@@ -364,10 +342,10 @@ export function useTonePlayer() {
         velocity
       )
     } else if (targetInstrument === 'synth') {
-      if (voiceId) {
+      if (voiceId && params) {
         let voiceSynth = voiceSynths.get(voiceId)
         if (!voiceSynth) {
-          voiceSynth = createVoiceSynth(voiceId)
+          voiceSynth = createVoiceSynth(voiceId, params)
         }
         voiceSynth.triggerAttackRelease(
           noteName,
@@ -376,7 +354,7 @@ export function useTonePlayer() {
           velocity
         )
       } else {
-        console.warn('Synth playNote called without voiceId')
+        console.warn('Synth playNote called without voiceId or params')
       }
     } else if (targetInstrument === 'synth2') {
       // synth2: control the continuous tone
